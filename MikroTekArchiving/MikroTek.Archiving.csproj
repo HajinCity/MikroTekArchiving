@@ -28,4 +28,13 @@
     <None Include="deploy\**\*" CopyToPublishDirectory="PreserveNewest" Link="%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- Keep these folders visible in Solution Explorer even while they are empty. -->
+  <ItemGroup>
+    <Folder Include="App_Data\" />
+    <Folder Include="Content\" />
+    <Folder Include="plugins\" />
+    <Folder Include="Scripts\" />
+    <Folder Include="Utility\" />
+  </ItemGroup>
+
 </Project>
