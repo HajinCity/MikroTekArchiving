@@ -1,0 +1,37 @@
+@*
+    Reusable chart. Model: MikroTek.Archiving.UI.ChartSpec. Drawn by ui-charts.js (Chart.js),
+    with a "Table" toggle so every chart can also be read as numbers (accessibility / printing).
+*@
+@model MikroTek.Archiving.UI.ChartSpec
+@{
+    var labels = Model.Labels.ToList();
+    var series = Model.Series.ToList();
+    var en = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    string F(decimal v) => Model.Money ? "₱" + v.ToString("N2", en) : v.ToString("N0", en);
+}
+<div class="ui-chart" id="@Model.ElementId">
+    @if (Model.Title is not null)
+    {
+        <div class="ui-chart-head">
+            <div>
+                <div class="ui-chart-title">@Model.Title</div>
+                @if (Model.Subtitle is not null) { <div class="ui-chart-sub">@Model.Subtitle</div> }
+            </div>
+            <button type="button" class="btn btn-sm btn-light ms-auto" data-chart-table-toggle title="Show the numbers as a table"><i class="bi bi-table"></i></button>
+        </div>
+    }
+    <div class="ui-chart-canvas" style="height:@(Model.Height)px">
+        <canvas data-ui-chart="@Model.ToJson()" role="img" aria-label="@(Model.Title ?? "Chart")"></canvas>
+    </div>
+    <div class="ui-chart-table table-responsive" hidden>
+        <table class="table table-sm ui-table mb-0">
+            <thead><tr><th></th>@foreach (var s in series) { <th class="text-end">@s.Name</th> }</tr></thead>
+            <tbody>
+                @for (var i = 0; i < labels.Count; i++)
+                {
+                    <tr><td>@labels[i]</td>@foreach (var s in series) { var vals = s.Values.ToList(); <td class="text-end">@(i < vals.Count ? F(vals[i]) : "")</td> }</tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

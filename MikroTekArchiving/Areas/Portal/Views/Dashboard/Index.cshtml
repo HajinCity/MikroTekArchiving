@@ -1,0 +1,100 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    var dvs = SampleData.Vouchers;
+    var incomplete = dvs.Where(v => !v.IsComplete).ToList();
+
+    // Monthly net by department
+    var months = dvs.Select(v => new DateTime(v.Date.Year, v.Date.Month, 1)).Distinct().OrderBy(d => d).ToList();
+    var monthly = new ChartSpec(ChartType.Bar, months.Select(m => m.ToString("MMM yyyy")),
+        [new("Junior High", months.Select(m => dvs.Where(v => v.Dept == "JHS" && v.Date.Month == m.Month).Sum(v => v.Net))),
+         new("Senior High", months.Select(m => dvs.Where(v => v.Dept == "SHS" && v.Date.Month == m.Month).Sum(v => v.Net)))],
+        "Net disbursed per month", "By department, FY 2026");
+
+    // Share by transaction type (top 4 + other)
+    var byType = dvs.GroupBy(v => v.Type.Split(' ')[0] switch { "Office," => "Supplies", "Repair" => "Repairs", "Job" => "Labor (Job Order)", "Utilities" => "Utilities", _ => "Travel" })
+        .Select(g => (Name: g.Key, Amt: g.Sum(v => v.Gross))).OrderByDescending(x => x.Amt).ToList();
+    var donut = new ChartSpec(ChartType.Donut, byType.Select(x => x.Name), [new("Gross", byType.Select(x => x.Amt))],
+        "Spending by transaction type", "Gross amounts, all DVs");
+
+    var accounts = dvs.SelectMany(v => v.Lines).GroupBy(l => l.Title).Select(g => (Name: g.Key, Amt: g.Sum(x => x.Amount)))
+        .OrderByDescending(x => x.Amt).ToList();
+    var top = accounts.Take(5).ToList();
+    if (accounts.Count > 5) top.Add(($"Other ({accounts.Count - 5})", accounts.Skip(5).Sum(x => x.Amt)));
+    var accountChart = new ChartSpec(ChartType.HBar, top.Select(x => x.Name), [new("Gross", top.Select(x => x.Amt))],
+        "Top expense accounts", "UACS accounts by gross amount", Height: 280);
+
+    var recent = DataGrid.For(dvs.OrderByDescending(v => v.Date).ThenByDescending(v => v.DvNo))
+        .Text("DV No.", v => v.DvNo, href: v => Url.Action("Details", "Vouchers", new { id = v.Id }), nowrap: true)
+        .Date("Date", v => v.Date, hideOnMobile: true)
+        .Text("Payee", v => v.Payee)
+        .Money("Net", v => v.Net)
+        .Badge("Packet", v => v.IsComplete ? "Complete" : "Incomplete", v => v.IsComplete ? "green" : "orange")
+        .Build("recentDvs", pageSize: 5, searchable: false, exportable: false, compact: true);
+}
+
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">Good morning, <b>Anely</b>. Here's the status of the disbursement archive.</div>
+    <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Scanned DV</a>
+    <a class="btn btn-outline-primary" asp-controller="CashAdvances" asp-action="Create"><i class="bi bi-cash-stack me-1"></i>Record Cash Advance</a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("DVs archived (FY 2026)", dvs.Count.ToString(), "bi-folder2-open", "blue", Hint: $"{dvs.Count(v => v.Date.Month == 9)} this month", Href: Url.Action("Index", "Vouchers")))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Total disbursed (net)", Fmt.Peso(dvs.Sum(v => v.Net)), "bi-cash-coin", "aqua", Hint: "JHS " + Fmt.Peso(dvs.Where(v => v.Dept == "JHS").Sum(v => v.Net))))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Taxes withheld", Fmt.Peso(dvs.Sum(v => v.Taxes)), "bi-receipt", "orange", Hint: "To be remitted to BIR", Href: Url.Action("Index", "Reports")))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Incomplete DV packets", incomplete.Count.ToString(), "bi-exclamation-triangle", "red", Hint: "Missing supporting documents", Href: Url.Action("Index", "Vouchers", new { status = "incomplete" })))" /></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-xl-8"><ui-card class="h-100"><partial name="UI/_Chart" model="monthly" /></ui-card></div>
+    <div class="col-xl-4"><ui-card class="h-100"><partial name="UI/_Chart" model="donut" /></ui-card></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-xl-7">
+        <ui-card title="Cash advances" subtitle="MOOE utilization" icon="bi-cash-stack" class="h-100">
+            <ui-card-tools><a asp-controller="CashAdvances" asp-action="Index">View all</a></ui-card-tools>
+            @foreach (var ca in SampleData.CashAdvances)
+            {
+                <div class="mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="dept dept-@ca.Dept">@ca.Dept</span>
+                        <a class="fw-semibold text-decoration-none" asp-controller="CashAdvances" asp-action="Details" asp-route-id="@ca.Id">@ca.PayrollNo</a>
+                        <span class="text-body-secondary small d-none d-sm-inline">· Batch @ca.BatchNo.ToString("00") · @ca.Period</span>
+                        <span class="ui-pill @(ca.Status == "Open" ? "tone-blue" : "tone-gray") ms-auto">@ca.Status</span>
+                    </div>
+                    <partial name="UI/_Meter" model="@(new Meter(null, ca.Amount, [new("Spent", ca.Spent, "s1"), new("Balance", ca.Balance, "track")]))" />
+                </div>
+            }
+        </ui-card>
+    </div>
+    <div class="col-xl-5">
+        <ui-card title="Needs attention" icon="bi-exclamation-circle" flush="true" class="h-100">
+            <ui-card-tools><a asp-controller="Vouchers" asp-action="Index" asp-route-status="incomplete">View all</a></ui-card-tools>
+            <div class="list-group list-group-flush">
+                @foreach (var v in incomplete)
+                {
+                    <a class="list-group-item list-group-item-action py-3" asp-controller="Vouchers" asp-action="Details" asp-route-id="@v.Id">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="dept dept-@v.Dept">@v.Dept</span>
+                            <span class="fw-semibold">@v.DvNo</span>
+                            <span class="ui-pill tone-orange ms-auto">@v.DocsMissing missing</span>
+                        </div>
+                        <div class="small text-body-secondary text-truncate mt-1">@v.Payee · @Fmt.Peso(v.Net)</div>
+                        <div class="small text-danger text-truncate">@string.Join(", ", v.Checklist.Where(c => c.Mark == "").Select(c => c.Label).Take(2))@(v.DocsMissing > 2 ? "…" : "")</div>
+                    </a>
+                }
+            </div>
+        </ui-card>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-5"><ui-card class="h-100"><partial name="UI/_Chart" model="accountChart" /></ui-card></div>
+    <div class="col-xl-7">
+        <ui-card title="Recently encoded DVs" icon="bi-folder2-open" flush="true" class="h-100">
+            <ui-card-tools><a asp-controller="Vouchers" asp-action="Index">Open archive</a></ui-card-tools>
+            <partial name="UI/_DataGrid" model="recent" />
+        </ui-card>
+    </div>
+</div>

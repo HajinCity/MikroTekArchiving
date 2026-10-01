@@ -1,0 +1,64 @@
+@{
+    ViewData["Title"] = "Record Cash Advance";
+    ViewData["Crumb"] = "Disbursements / Cash Advances";
+}
+<div class="row justify-content-center">
+    <div class="col-xl-8">
+        <form asp-action="Create" method="post" class="card">
+            <div class="card-header">School MOOE Slip details <span class="sub">— copy from the slip issued by the Division Cash Unit</span></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Department</label>
+                        <select class="form-select" name="Dept"><option>JHS</option><option>SHS</option></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Batch No.</label>
+                        <input class="form-control" name="BatchNo" type="number" min="1" value="4" />
+                        <div class="form-text">Used in the DV numbers, e.g. JHS2026-<b>04</b>-054</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Fund Cluster</label>
+                        <input class="form-control" name="FundCluster" value="Regular" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Payroll No.</label>
+                        <input class="form-control" name="PayrollNo" placeholder="OE-26-09-0000" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">ADA No.</label>
+                        <input class="form-control" name="AdaNo" placeholder="2026090000" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date</label>
+                        <input class="form-control" name="Date" type="date" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Amount</label>
+                        <div class="input-group"><span class="input-group-text">₱</span><input class="form-control text-end" name="Amount" inputmode="decimal" placeholder="0.00" /></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Period Covered</label>
+                        <input class="form-control" name="Period" placeholder="September – October 2026" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Accountable Officer</label>
+                        <input class="form-control" name="Officer" value="Jessiebel M. Cana" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Verified by (Cash Unit)</label>
+                        <input class="form-control" name="VerifiedBy" value="Ercel C. Monternel" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Scanned MOOE Slip (optional)</label>
+                        <input class="form-control" type="file" accept=".pdf,.jpg,.jpeg,.png" />
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-white d-flex gap-2 justify-content-end">
+                <a class="btn btn-light" asp-action="Index">Cancel</a>
+                <button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Cash Advance</button>
+            </div>
+        </form>
+    </div>
+</div>

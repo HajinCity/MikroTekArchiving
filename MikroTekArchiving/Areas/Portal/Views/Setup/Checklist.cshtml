@@ -1,0 +1,26 @@
+@model ChecklistTemplateRow
+@{ ViewData["Title"] = Model.Name; ViewData["Crumb"] = "Setup / Checklist Templates"; }
+<form class="card" asp-action="Save" asp-route-back="Checklists" method="post" style="max-width:900px">
+    <div class="card-header">Checklist type</div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-8"><label class="form-label">Name (printed as the cover sheet title)</label><input class="form-control" value="@Model.Name" /></div>
+            <div class="col-md-4"><label class="form-label">Status</label><select class="form-select"><option>Active</option><option>Inactive</option></select></div>
+        </div>
+        <label class="form-label">Items <span class="text-body-secondary fw-normal">— in the same order as the paper cover sheet</span></label>
+        <ul class="list-group mb-2" id="items">
+            @foreach (var i in Model.Items)
+            {
+                <li class="list-group-item d-flex align-items-center gap-2">
+                    <i class="bi bi-grip-vertical text-body-secondary"></i>
+                    <input class="form-control form-control-sm border-0" value="@i" />
+                    <button type="button" class="btn btn-sm btn-light" title="Move up" onclick="const li=this.closest('li');li.previousElementSibling?.before(li)"><i class="bi bi-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-light" title="Remove" onclick="this.closest('li').remove()"><i class="bi bi-trash"></i></button>
+                </li>
+            }
+        </ul>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('items').insertAdjacentHTML('beforeend', `<li class='list-group-item d-flex align-items-center gap-2'><i class='bi bi-grip-vertical text-body-secondary'></i><input class='form-control form-control-sm border-0' placeholder='New document'><button type='button' class='btn btn-sm btn-light' onclick='this.closest(&quot;li&quot;).remove()'><i class='bi bi-trash'></i></button></li>`)"><i class="bi bi-plus-lg"></i> Add item</button>
+        <div class="alert alert-light border small mt-3 mb-0"><i class="bi bi-info-circle"></i> Changing a template only affects DVs encoded after the change. Existing DVs keep the checklist they were archived with.</div>
+    </div>
+    <div class="card-footer bg-white d-flex gap-2 justify-content-end"><a class="btn btn-light" asp-action="Checklists">Cancel</a><button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save template</button></div>
+</form>

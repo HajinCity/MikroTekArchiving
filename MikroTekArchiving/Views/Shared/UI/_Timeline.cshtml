@@ -1,0 +1,14 @@
+@* Activity / audit trail. Model: IEnumerable<MikroTek.Archiving.UI.TimelineItem> *@
+@model IEnumerable<MikroTek.Archiving.UI.TimelineItem>
+<ul class="ui-timeline">
+    @foreach (var t in Model)
+    {
+        <li>
+            <span class="ui-timeline-dot tone-@t.Tone"><i class="bi @t.Icon"></i></span>
+            <div class="ui-timeline-body">
+                <div><b>@t.Who</b> @t.What</div>
+                <div class="ui-timeline-when">@t.When.ToString("MMM d, yyyy · h:mm tt")</div>
+            </div>
+        </li>
+    }
+</ul>

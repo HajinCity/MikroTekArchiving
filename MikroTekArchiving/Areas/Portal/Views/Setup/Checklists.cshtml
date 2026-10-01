@@ -1,0 +1,28 @@
+@model List<ChecklistTemplateRow>
+@{ ViewData["Title"] = "Checklist Templates"; ViewData["Crumb"] = "Setup"; }
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">The cover-sheet checklists per transaction type. When a DV is encoded, its type's checklist is copied onto it. Edit or add types when the requirements change.</div>
+    <a class="btn btn-primary" asp-action="Checklist" asp-route-id="0"><i class="bi bi-plus-lg me-1"></i>New Checklist Type</a>
+</div>
+<div class="row g-3">
+    @foreach (var t in Model)
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="bi bi-list-check fs-4 text-primary"></i>
+                        <div class="flex-fill"><div class="fw-semibold">@t.Name</div>
+                            <div class="small text-body-secondary">@t.Items.Count items · @SampleData.Vouchers.Count(v => v.Type == t.Name) DVs</div></div>
+                        @if (t.BuiltIn) { <span class="badge-status st-open">From cover sheet</span> } else { <span class="badge-status st-closed">Added</span> }
+                    </div>
+                    <ol class="small text-body-secondary ps-3 mb-0">
+                        @foreach (var i in t.Items.Take(4)) { <li>@i</li> }
+                        @if (t.Items.Count > 4) { <li class="list-unstyled">… and @(t.Items.Count - 4) more</li> }
+                    </ol>
+                </div>
+                <div class="card-footer bg-white"><a class="btn btn-sm btn-outline-primary" asp-action="Checklist" asp-route-id="@t.Id"><i class="bi bi-pencil me-1"></i>Edit items</a></div>
+            </div>
+        </div>
+    }
+</div>

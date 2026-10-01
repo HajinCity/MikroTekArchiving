@@ -1,0 +1,89 @@
+@model CashAdvanceRow
+@{
+    ViewData["Title"] = $"Cash Advance {Model.PayrollNo}";
+    ViewData["Crumb"] = "Disbursements / Cash Advances";
+    var dvs = Model.Vouchers.OrderBy(v => v.Date).ThenBy(v => v.DvNo).ToList();
+    var running = Model.Amount;
+}
+<div class="page-actions">
+    <span class="dept dept-@Model.Dept">@(Model.Dept == "JHS" ? "Junior High" : "Senior High")</span>
+    <span class="badge-status @(Model.Status == "Open" ? "st-open" : "st-closed")">@Model.Status</span>
+    <span class="me-auto"></span>
+    <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload" asp-route-ca="@Model.Id"><i class="bi bi-plus-lg me-1"></i>Add DV to this advance</a>
+    <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Register" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Cash Disbursements Register</a>
+    <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Alphalist" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Alphalist</a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">School MOOE Slip</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-body-secondary fw-normal">Payroll No.</dt><dd class="col-7 fw-semibold">@Model.PayrollNo</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">ADA No.</dt><dd class="col-7 mono">@Model.AdaNo</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Date</dt><dd class="col-7">@Fmt.LongDate(Model.Date)</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Period covered</dt><dd class="col-7">@Model.Period</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Batch</dt><dd class="col-7">@Model.BatchNo.ToString("00") (DV series @(Model.Dept)2026-@Model.BatchNo.ToString("00")-###)</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Fund cluster</dt><dd class="col-7">Regular</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Accountable officer</dt><dd class="col-7">@Model.Officer<br /><small class="text-body-secondary">School Principal II</small></dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Verified by</dt><dd class="col-7">Ercel C. Monternel<br /><small class="text-body-secondary">AO IV – Cash Unit</small></dd>
+                </dl>
+                <hr />
+                <div class="file-row border-0 py-0"><i class="bi bi-file-earmark-pdf ficon"></i><div class="flex-fill small"><div class="fw-semibold">MOOE Slip + CDR + Alphalist.pdf</div><div class="text-body-secondary">1.2 MB · scanned</div></div><a class="btn btn-sm btn-light" href="#"><i class="bi bi-eye"></i></a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="row g-3">
+            <div class="col-sm-4"><div class="card kpi"><div class="icon"><i class="bi bi-wallet2"></i></div><div><div class="label">Cash advance</div><div class="value">@Fmt.Peso(Model.Amount)</div></div></div></div>
+            <div class="col-sm-4"><div class="card kpi"><div class="icon gold"><i class="bi bi-arrow-up-right"></i></div><div><div class="label">Paid out (@dvs.Count DVs)</div><div class="value">@Fmt.Peso(Model.Spent)</div></div></div></div>
+            <div class="col-sm-4"><div class="card kpi"><div class="icon green"><i class="bi bi-piggy-bank"></i></div><div><div class="label">Balance</div><div class="value">@Fmt.Peso(Model.Balance)</div></div></div></div>
+            <div class="col-12">
+                <div class="card"><div class="card-body">
+                    <div class="d-flex small mb-1"><span>Utilization</span><span class="ms-auto fw-semibold">@Model.PercentUsed%</span></div>
+                    <div class="progress" style="height:.8rem"><div class="progress-bar" style="width:@Model.PercentUsed%"></div></div>
+                    <div class="small text-body-secondary mt-2">
+                        @if (Model.Balance == 0) { <span><i class="bi bi-check-circle-fill text-success"></i> Fully liquidated — the register balance is zero.</span> }
+                        else { <span><i class="bi bi-info-circle"></i> @Fmt.Peso(Model.Balance) still to be disbursed or refunded before liquidation.</span> }
+                    </div>
+                </div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <partial name="_HBars" model="@(new BarChart("Spending by UACS account", $"Gross amounts of {dvs.Count} DVs charged to {Model.PayrollNo}", dvs.SelectMany(v => v.Lines).GroupBy(x => (x.Title, x.Code)).Select(g => new BarItem(g.Key.Title, g.Key.Code, g.Sum(x => x.Amount))).ToList()))" />
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Disbursement vouchers charged to this advance</div>
+    <div class="table-responsive">
+        <table class="table table-portal">
+            <thead><tr><th>Date</th><th>DV No.</th><th>Check No.</th><th>Payee</th><th>Type</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net Paid</th><th class="num">Balance</th><th>Packet</th></tr></thead>
+            <tbody>
+                <tr class="table-light"><td>@Fmt.Date(Model.Date)</td><td colspan="6" class="fw-semibold">Cash advance received — @Model.PayrollNo</td><td class="num"></td><td class="num fw-semibold">@Fmt.Num(Model.Amount)</td><td></td></tr>
+                @foreach (var v in dvs)
+                {
+                    running -= v.Net;
+                    <tr>
+                        <td>@Fmt.Date(v.Date)</td>
+                        <td class="text-nowrap"><a class="dv-link" asp-controller="Vouchers" asp-action="Details" asp-route-id="@v.Id">@v.DvNo</a></td>
+                        <td class="mono">@v.CheckNo</td>
+                        <td class="text-truncate" style="max-width:240px">@v.Payee</td>
+                        <td class="small text-body-secondary text-truncate" style="max-width:180px">@v.Type</td>
+                        <td class="num">@Fmt.Num(v.Gross)</td>
+                        <td class="num">@Fmt.Acct(-v.Taxes)</td>
+                        <td class="num">@Fmt.Num(v.Net)</td>
+                        <td class="num">@Fmt.Num(running)</td>
+                        <td>@if (v.IsComplete) { <span class="badge-status st-complete">Complete</span> } else { <span class="badge-status st-incomplete">@v.DocsMissing missing</span> }</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="fw-semibold"><tr><td colspan="5" class="text-end">Totals</td><td class="num">@Fmt.Num(dvs.Sum(v => v.Gross))</td><td class="num">@Fmt.Acct(-dvs.Sum(v => v.Taxes))</td><td class="num">@Fmt.Num(Model.Spent)</td><td class="num">@Fmt.Num(Model.Balance)</td><td></td></tr></tfoot>
+        </table>
+    </div>
+</div>

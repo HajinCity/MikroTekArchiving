@@ -1,0 +1,25 @@
+@model MikroTekArchiving.Services.LogoutSummary
+@{
+    ViewData["Title"] = "Logged out";
+    ViewData["Accent"] = "rgba(237,44,0,1.00)";
+
+    static string Hms(TimeSpan t) =>
+        t.TotalDays >= 1 ? $"{(int)t.TotalDays}d {t.Hours:00}:{t.Minutes:00}:{t.Seconds:00}"
+                         : $"{t.Hours:00}:{t.Minutes:00}:{t.Seconds:00}";
+}
+
+<div class="box hs-panel">
+    <div class="hs-welcome"><b>You just logged out</b></div>
+    <table class="tabula hs-table">
+        <tr><td>Voucher:</td><td>@Model.VoucherCode</td></tr>
+        <tr><td>IP address:</td><td>@Model.IpAddress</td></tr>
+        <tr><td>MAC address:</td><td>@Model.MacAddress</td></tr>
+        <tr><td>Session time:</td><td>@Hms(Model.SessionTime)</td></tr>
+        <tr><td>Time left:</td><td>@Hms(Model.TimeLeft)</td></tr>
+    </table>
+    <p class="hs-small">Your voucher keeps counting down even while you are logged out.</p>
+
+    <div class="hs-actions">
+        <a class="button" asp-action="Login">Log in again</a>
+    </div>
+</div>

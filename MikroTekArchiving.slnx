@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="MikroTek.Domain/MikroTek.Domain.csproj" Id="ed55aa3a-37ab-4da2-8705-6fffe0097502" />
+  <Project Path="MikroTek.Services/MikroTek.Services.csproj" Id="4de9545b-f53e-4150-b465-582b694d4dfb" />
+  <Project Path="MikroTekArchiving/MikroTek.Archiving.csproj" />
+</Solution>

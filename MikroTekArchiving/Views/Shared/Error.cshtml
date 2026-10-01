@@ -1,0 +1,30 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = "Something went wrong";
+}
+
+<div class="py-4" style="max-width: 640px">
+    @if (Model.DatabaseDown)
+    {
+        <h1 class="h3 text-danger">The database is not available</h1>
+        <p>The server is running, but it cannot reach SQL Server right now, so this page can't load.</p>
+        <p class="mb-1"><strong>For the administrator (on the server PC):</strong></p>
+        <ul>
+            <li>Make sure the <strong>SQL Server (SQLEXPRESS)</strong> service is running (Windows key &gt; type <em>Services</em>).</li>
+            <li>Check the connection string in <code>appsettings.Production.json</code>.</li>
+            <li>Open <a href="/health">/health</a> to see the current status.</li>
+        </ul>
+    }
+    else
+    {
+        <h1 class="h3 text-danger">Something went wrong</h1>
+        <p>An error occurred while processing your request. Please try again, or tell the administrator what you were doing.</p>
+    }
+
+    @if (Model.ShowRequestId)
+    {
+        <p class="text-muted small">Reference: <code>@Model.RequestId</code></p>
+    }
+
+    <a class="btn btn-primary" href="/Portal">Back to the portal</a>
+</div>

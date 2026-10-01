@@ -1,0 +1,104 @@
+@*
+    Reusable data grid. Model: MikroTek.Archiving.UI.DataGrid (build with DataGrid.For(rows)...Build("id")).
+    The server renders every row; ui-grid.js adds search, sort, paging, live totals and CSV export.
+*@
+@model MikroTek.Archiving.UI.DataGrid
+@using MikroTek.Archiving.UI
+@{
+    var hasTotals = Model.Columns.Any(c => c.Total);
+    var en = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    string Align(GridColumn c) => c.IsNumeric ? "text-end" : "";
+    string Mob(GridColumn c) => c.HideOnMobile ? "d-none d-md-table-cell" : "";
+}
+<div class="ui-grid" id="@Model.Id" data-ui-grid data-page-size="@Model.PageSize" data-export-name="@Model.ExportName">
+    @if (Model.Searchable || Model.Exportable)
+    {
+        <div class="ui-grid-toolbar">
+            <label class="ui-grid-size">Show
+                <select class="form-select form-select-sm" data-grid-size>
+                    @foreach (var n in new[] { 10, 25, 50, 100 }) { <option value="@n" selected="@(n == Model.PageSize)">@n</option> }
+                    <option value="0">All</option>
+                </select> entries</label>
+            <div class="ms-auto d-flex gap-2 align-items-center">
+                @if (Model.Searchable)
+                {
+                    <div class="ui-grid-search"><i class="bi bi-search"></i><input type="search" class="form-control form-control-sm" placeholder="Search…" data-grid-search aria-label="Search table" /></div>
+                }
+                @if (Model.Exportable)
+                {
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-light" data-grid-export title="Download as CSV (opens in Excel)"><i class="bi bi-filetype-csv"></i><span class="d-none d-lg-inline"> CSV</span></button>
+                        <button type="button" class="btn btn-light" data-grid-print title="Print this table"><i class="bi bi-printer"></i></button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    <div class="table-responsive">
+        <table class="table ui-table @(Model.Compact ? "table-sm" : "")">
+            <thead>
+                <tr>
+                    @for (var i = 0; i < Model.Columns.Count; i++)
+                    {
+                        var c = Model.Columns[i];
+                        <th class="@Align(c) @Mob(c) @(c.Sortable ? "sortable" : "")" style="@(c.Width is null ? null : $"width:{c.Width}")"
+                            data-col="@i" data-type="@(c.IsNumeric ? "num" : c.Type == ColType.Date ? "date" : "text")" tabindex="@(c.Sortable ? "0" : null)" aria-sort="@(c.Sortable ? "none" : null)">@c.Header</th>
+                    }
+                    @if (Model.RowActions is not null) { <th class="text-end no-export" style="width:1%"></th> }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        @foreach (var c in Model.Columns)
+                        {
+                            var text = c.Display(row);
+                            <td class="@Align(c) @Mob(c) @(c.Nowrap ? "text-nowrap" : "") @c.CssClass" data-sort="@c.SortKey(row)" data-export="@(c.Type == ColType.Html ? "" : text)">
+                                @switch (c.Type)
+                                {
+                                    case ColType.Badge:
+                                        if (!string.IsNullOrEmpty(text)) { <span class="ui-pill tone-@c.BadgeTone(row)">@text</span> }
+                                        break;
+                                    case ColType.Html:
+                                        @Html.Raw(text)
+                                        break;
+                                    default:
+                                        if (c.Link(row) is string href) { <a href="@href" class="ui-grid-link">@text</a> } else { @text }
+                                        break;
+                                }
+                            </td>
+                        }
+                        @if (Model.RowActions is not null) { <td class="text-end text-nowrap no-export">@Html.Raw(Model.RowActions(row))</td> }
+                    </tr>
+                }
+                <tr class="ui-grid-empty" hidden="@(Model.Rows.Count > 0)">
+                    <td colspan="@(Model.Columns.Count + (Model.RowActions is null ? 0 : 1))"><i class="bi bi-search"></i> @Model.EmptyText</td>
+                </tr>
+            </tbody>
+            @if (hasTotals)
+            {
+                <tfoot>
+                    <tr>
+                        @for (var i = 0; i < Model.Columns.Count; i++)
+                        {
+                            var c = Model.Columns[i];
+                            if (c.Total)
+                            {
+                                var sum = Model.Rows.Sum(r => c.Raw(r) is decimal d ? d : 0);
+                                <td class="text-end @Mob(c)" data-total-col="@i" data-money="@(c.Type == ColType.Money ? "1" : "0")">@sum.ToString(c.Type == ColType.Money ? "N2" : "N0", en)</td>
+                            }
+                            else if (i == 0) { <td class="@Mob(c)">Total</td> }
+                            else { <td class="@Mob(c)"></td> }
+                        }
+                        @if (Model.RowActions is not null) { <td></td> }
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+    <div class="ui-grid-footer">
+        <span class="ui-grid-info" data-grid-info>@Model.Rows.Count record(s)</span>
+        <nav class="ms-auto" aria-label="Table pages"><ul class="pagination pagination-sm mb-0" data-grid-pager></ul></nav>
+    </div>
+</div>

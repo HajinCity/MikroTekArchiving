@@ -1,0 +1,168 @@
+@model DvRow
+@{
+    ViewData["Title"] = Model.DvNo;
+    ViewData["Crumb"] = "Disbursements / DV Archive";
+    var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+}
+<div class="page-actions">
+    <span class="dept dept-@Model.Dept">@Model.Dept</span>
+    @if (Model.IsComplete) { <span class="badge-status st-complete"><i class="bi bi-check2-circle"></i> Packet complete</span> }
+    else { <span class="badge-status st-incomplete"><i class="bi bi-exclamation-circle"></i> @Model.DocsMissing document(s) missing</span> }
+    <span class="badge-status st-closed">PAID @Fmt.Date(Model.PaidDate)</span>
+    <span class="me-auto"></span>
+    <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Edit</a>
+    <a class="btn btn-primary" asp-action="Print" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Print archive record</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dv" type="button">Voucher</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-charts" type="button"><i class="bi bi-bar-chart-line me-1"></i>Charts</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-check" type="button">Checklist <span class="badge text-bg-light">@Model.DocsDone/@Model.Checklist.Count</span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button">Scanned files <span class="badge text-bg-light">@Model.Attachments</span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-log" type="button">History</button></li>
+        </ul>
+        <div class="tab-content">
+            <!-- VOUCHER -->
+            <div class="tab-pane fade show active" id="tab-dv">
+                <div class="card mb-3">
+                    <div class="card-header">Disbursement Voucher <span class="sub">— Appendix 32</span></div>
+                    <div class="card-body">
+                        <div class="row g-3 small">
+                            <div class="col-md-4"><div class="text-body-secondary">DV No.</div><div class="fw-semibold fs-6">@Model.DvNo</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">DV Date</div><div class="fw-semibold">@Fmt.LongDate(Model.Date)</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">Fund Cluster</div><div class="fw-semibold">Regular</div></div>
+                            <div class="col-md-8"><div class="text-body-secondary">Payee</div><div class="fw-semibold">@Model.Payee</div><div>@Model.Address</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">TIN / Employee No.</div><div class="fw-semibold mono">@Model.Tin</div></div>
+                            <div class="col-12"><div class="text-body-secondary">Particulars</div><div>@Model.Particulars</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">Responsibility Center</div><div>100010000</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">MFO/PAP</div><div>MOOE</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">Transaction type</div><div>@Model.Type</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Accounting Entry</div>
+                    <div class="table-responsive">
+                        <table class="table table-portal">
+                            <thead><tr><th>Account Title</th><th>UACS Code</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
+                            <tbody>
+                                @foreach (var l in Model.Lines) { <tr><td>@l.Title</td><td class="mono">@l.Code</td><td class="num">@Fmt.Num(l.Amount)</td><td></td></tr> }
+                                @if (Model.Tax1 > 0) { <tr><td class="ps-4">Due to BIR — 1%</td><td class="mono">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax1)</td></tr> }
+                                @if (Model.Tax3 > 0) { <tr><td class="ps-4">Due to BIR — 3%</td><td class="mono">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax3)</td></tr> }
+                                <tr><td class="ps-4">Advances for Operating Expenses</td><td class="mono">1990101000</td><td></td><td class="num">@Fmt.Num(Model.Net)</td></tr>
+                            </tbody>
+                            <tfoot class="fw-semibold"><tr><td colspan="2" class="text-end">Totals</td><td class="num">@Fmt.Num(Model.Gross)</td><td class="num">@Fmt.Num(Model.Gross)</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Payment</div>
+                    <div class="card-body row g-3 small">
+                        <div class="col-md-3"><div class="text-body-secondary">Mode</div><div class="fw-semibold">@Model.Mode</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Check / ADA No.</div><div class="fw-semibold mono">@Model.CheckNo</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Date paid</div><div class="fw-semibold">@Fmt.Date(Model.PaidDate)</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Bank / Account</div><div>DBP Pagadian 0-06071-840-8</div></div>
+                        <div class="col-md-6"><div class="text-body-secondary">Received by</div><div class="fw-semibold">@Model.ReceivedBy</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">OR / Invoice No.</div><div>—</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">JEV No.</div><div>—</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHARTS -->
+            <div class="tab-pane fade" id="tab-charts">
+                <partial name="_DvCharts" model="Model" />
+            </div>
+
+            <!-- CHECKLIST -->
+            <div class="tab-pane fade" id="tab-check">
+                <form class="card" asp-action="SaveChecklist" asp-route-id="@Model.Id" method="post">
+                    <div class="card-header d-flex align-items-center">
+                        <span>@Model.Type</span>
+                        <span class="ms-auto small text-body-secondary">✓ = attached · NA = not applicable · blank = missing</span>
+                    </div>
+                    <div class="card-body checklist">
+                        @for (var i = 0; i < Model.Checklist.Count; i++)
+                        {
+                            var c = Model.Checklist[i];
+                            <div class="item">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <input type="radio" class="btn-check" name="m@(i)" id="m@(i)y" checked="@(c.Mark == "✓")" /><label class="btn btn-outline-success btn-mark" for="m@(i)y">✓</label>
+                                    <input type="radio" class="btn-check" name="m@(i)" id="m@(i)n" checked="@(c.Mark == "NA")" /><label class="btn btn-outline-secondary btn-mark" for="m@(i)n">NA</label>
+                                    <input type="radio" class="btn-check" name="m@(i)" id="m@(i)x" checked="@(c.Mark == "")" /><label class="btn btn-outline-danger btn-mark" for="m@(i)x"><i class="bi bi-dash"></i></label>
+                                </div>
+                                <div class="label @(c.Mark == "" ? "text-danger fw-semibold" : "")">@c.Label</div>
+                                <input class="form-control form-control-sm" style="width:90px" placeholder="date" value="@c.Date" />
+                            </div>
+                        }
+                        <div class="mt-3">
+                            <label class="form-label">Remarks</label>
+                            <textarea class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white d-flex align-items-center">
+                        <span class="small text-body-secondary">Checked by: Anely R. Villegas, ADAS III</span>
+                        <button class="btn btn-primary ms-auto"><i class="bi bi-save me-1"></i>Save checklist</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- FILES -->
+            <div class="tab-pane fade" id="tab-files">
+                <div class="card">
+                    <div class="card-body">
+                        <form asp-action="AddFiles" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="dropzone mb-3">
+                            <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
+                            <div class="fw-semibold text-body">Drop the scanned DV packet here</div>
+                            <div class="small mb-3">PDF, JPG or PNG · up to 100 MB each</div>
+                            <input type="file" name="files" class="form-control w-auto mx-auto" multiple accept=".pdf,.jpg,.jpeg,.png" />
+                            <button class="btn btn-primary btn-sm mt-3"><i class="bi bi-upload me-1"></i>Upload</button>
+                        </form>
+                        <div class="file-row"><i class="bi bi-file-earmark-pdf ficon"></i><div class="flex-fill"><div class="fw-semibold">@(Model.DvNo).pdf</div><div class="small text-body-secondary">Complete DV packet · uploaded by avillegas · @Fmt.Date(Model.PaidDate)</div></div>
+                            <a class="btn btn-sm btn-light" href="#"><i class="bi bi-eye"></i> View</a>
+                            <a class="btn btn-sm btn-light" href="#"><i class="bi bi-download"></i></a></div>
+                        <div class="ratio ratio-4x3 mt-3 border rounded bg-light d-flex">
+                            <div class="d-grid place-items-center text-center text-body-secondary" style="display:grid;place-items:center">
+                                <div><i class="bi bi-file-earmark-pdf fs-1 d-block"></i>PDF preview appears here once files are stored.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORY -->
+            <div class="tab-pane fade" id="tab-log">
+                <div class="card"><ul class="list-group list-group-flush small">
+                    <li class="list-group-item"><b>avillegas</b> uploaded @(Model.DvNo).pdf <span class="text-body-secondary float-end">@Fmt.Date(Model.PaidDate) 3:41 PM</span></li>
+                    <li class="list-group-item"><b>avillegas</b> updated the checklist (@Model.DocsDone of @Model.Checklist.Count) <span class="text-body-secondary float-end">@Fmt.Date(Model.PaidDate) 3:38 PM</span></li>
+                    <li class="list-group-item"><b>avillegas</b> encoded the voucher <span class="text-body-secondary float-end">@Fmt.Date(Model.PaidDate) 3:30 PM</span></li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: amounts summary -->
+    <div class="col-xl-4">
+        <div class="card summary-card">
+            <div class="card-header">Amount</div>
+            <div class="card-body">
+                <div class="row-amt"><span>Gross amount</span><span>@Fmt.Peso(Model.Gross)</span></div>
+                <div class="row-amt text-body-secondary"><span>Less 1% withholding</span><span>@Fmt.Acct(-Model.Tax1)</span></div>
+                <div class="row-amt text-body-secondary"><span>Less 3% withholding</span><span>@Fmt.Acct(-Model.Tax3)</span></div>
+                <div class="row-amt total"><span>Net amount paid</span><span>@Fmt.Peso(Model.Net)</span></div>
+                <hr />
+                <div class="small text-body-secondary mb-1">Charged to cash advance</div>
+                <a class="fw-semibold text-decoration-none" asp-controller="CashAdvances" asp-action="Details" asp-route-id="@ca.Id">@ca.PayrollNo</a>
+                <div class="small">@ca.Dept · Batch @ca.BatchNo.ToString("00") · balance @Fmt.Peso(ca.Balance)</div>
+                <hr />
+                <div class="small text-body-secondary mb-2">Supporting documents</div>
+                <div class="progress mb-1"><div class="progress-bar @(Model.DocsMissing == 0 ? "bg-success" : "bg-warning")" style="width:@(Model.DocsDone * 100 / Model.Checklist.Count)%"></div></div>
+                <div class="small">@Model.DocsDone of @Model.Checklist.Count accounted for</div>
+            </div>
+        </div>
+    </div>
+</div>

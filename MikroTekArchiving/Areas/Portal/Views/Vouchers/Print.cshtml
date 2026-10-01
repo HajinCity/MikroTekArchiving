@@ -1,0 +1,54 @@
+@model DvRow
+@{
+    Layout = "_PrintLayout";
+    ViewData["Title"] = $"Archive Record – {Model.DvNo}";
+    var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+}
+<div class="hdr">
+    Republic of the Philippines<br />
+    <b>DEPARTMENT OF EDUCATION</b><br />
+    Region IX, Zamboanga Peninsula · Division of Zamboanga del Sur · Josefina District<br />
+    <b>@SampleData.School</b> — @(Model.Dept == "JHS" ? "Junior High School" : "Senior High School")
+    <div class="title">DISBURSEMENT VOUCHER — ARCHIVE RECORD</div>
+</div>
+
+<table class="plain" style="margin-bottom:8px">
+    <tr><td style="width:18%">DV No.:</td><td class="bold" style="width:32%"><span class="sticky-note">@Model.DvNo</span></td>
+        <td style="width:18%">DV Date:</td><td>@Fmt.LongDate(Model.Date)</td></tr>
+    <tr><td>Payee:</td><td class="bold">@Model.Payee</td><td>TIN/Employee No.:</td><td>@Model.Tin</td></tr>
+    <tr><td>Address:</td><td>@Model.Address</td><td>Fund Cluster:</td><td>Regular · MOOE</td></tr>
+    <tr><td>Cash advance:</td><td>@ca.PayrollNo (ADA @ca.AdaNo)</td><td>Check/ADA No.:</td><td>@Model.CheckNo · paid @Fmt.Date(Model.PaidDate)</td></tr>
+    <tr><td>Particulars:</td><td colspan="3">@Model.Particulars</td></tr>
+</table>
+
+<table class="grid" style="margin-bottom:10px">
+    <thead><tr><th>Account Title</th><th style="width:22%">UACS Code</th><th class="num" style="width:16%">Debit</th><th class="num" style="width:16%">Credit</th></tr></thead>
+    <tbody>
+        @foreach (var l in Model.Lines) { <tr><td>@l.Title</td><td class="center">@l.Code</td><td class="num">@Fmt.Num(l.Amount)</td><td></td></tr> }
+        @if (Model.Tax1 > 0) { <tr><td style="padding-left:20px">Due to BIR 1%</td><td class="center">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax1)</td></tr> }
+        @if (Model.Tax3 > 0) { <tr><td style="padding-left:20px">Due to BIR 3%</td><td class="center">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax3)</td></tr> }
+        <tr><td style="padding-left:20px">Advances for Operating Expenses</td><td class="center">1990101000</td><td></td><td class="num">@Fmt.Num(Model.Net)</td></tr>
+        <tr class="bold"><td colspan="2" class="right">TOTAL</td><td class="num">@Fmt.Num(Model.Gross)</td><td class="num">@Fmt.Num(Model.Gross)</td></tr>
+    </tbody>
+</table>
+<p class="right bold" style="margin:0 0 14px">Net amount paid: ₱@Fmt.Num(Model.Net)</p>
+
+<div class="center bold" style="margin:6px 0">DV# : <span class="u">@Model.DvNo</span></div>
+<div class="center bold" style="margin-bottom:8px">@Model.Type.ToUpperInvariant()</div>
+<table class="plain">
+    <tr><td></td><td></td><td class="bold center" style="width:28%">Remarks</td></tr>
+    @foreach (var c in Model.Checklist)
+    {
+        <tr>
+            <td style="width:34px"><span class="box">@(c.Mark == "✓" ? "\\" : c.Mark)</span></td>
+            <td>@c.Label @if (c.Date is not null && c.Mark == "✓") { <span class="italic small">&nbsp;@c.Date</span> }</td>
+            <td style="border-bottom:1px solid #000">@c.Remarks</td>
+        </tr>
+    }
+</table>
+<p class="small" style="margin-top:10px">Status: <b>@(Model.IsComplete ? "COMPLETE" : $"INCOMPLETE — {Model.DocsMissing} document(s) missing")</b></p>
+
+<div style="display:flex; justify-content:space-between; margin-top:24px">
+    <div>Checked by:<br /><div class="sig"><div class="name">Anely R. Villegas</div>ADAS III</div></div>
+    <div class="tiny right" style="align-self:flex-end">Printed from the Disbursement Archiving Portal · @DateTime.Now.ToString("MM/dd/yyyy h:mm tt")</div>
+</div>

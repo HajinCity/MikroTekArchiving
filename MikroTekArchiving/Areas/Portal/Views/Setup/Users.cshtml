@@ -1,0 +1,24 @@
+@model List<UserRow>
+@{ ViewData["Title"] = "Staff Users"; ViewData["Crumb"] = "Setup"; }
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">Who can sign in. <b>Admin</b> — everything · <b>Bookkeeper</b> — encode, upload, print · <b>Viewer</b> — search, view and print only.</div>
+    <button class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Add User</button>
+</div>
+<div class="card">
+    <table class="table table-portal">
+        <thead><tr><th>Name</th><th>Username</th><th>Position</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var u in Model)
+            {
+                <tr>
+                    <td><span class="avatar d-inline-grid me-2" style="width:28px;height:28px;font-size:.7rem">@string.Concat(u.FullName.Split(' ').Where(p => p.Length > 1).Take(2).Select(p => p[0]))</span>@u.FullName</td>
+                    <td class="mono">@u.Username</td><td>@u.Position</td>
+                    <td><span class="badge-status @(u.Role == "Admin" ? "st-incomplete" : u.Role == "Bookkeeper" ? "st-open" : "st-closed")">@u.Role</span></td>
+                    <td class="small">@(u.LastLogin?.ToString("MMM d, yyyy h:mm tt") ?? "Never")</td>
+                    <td>@if (u.Active) { <span class="badge-status st-complete">Active</span> } else { <span class="badge-status st-closed">Disabled</span> }</td>
+                    <td class="text-end text-nowrap"><button class="btn btn-sm btn-light" title="Edit"><i class="bi bi-pencil"></i></button> <button class="btn btn-sm btn-light" title="Reset password"><i class="bi bi-key"></i></button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,199 @@
+@model ScanResult
+@{
+    ViewData["Title"] = "Review Scanned DV";
+    ViewData["Crumb"] = "Disbursements / New DV";
+    var f = Model.Fields;
+    var read = f.Values.Count(x => x.Status == "read");
+    var sugg = f.Values.Count(x => x.Status == "suggested");
+    var miss = f.Values.Count(x => x.Status == "missing");
+    var template = SampleData.Templates.First(t => t.Name == Model.DetectedType);
+    var found = Model.PageMap.Where(p => p.ChecklistItem is not null).GroupBy(p => p.ChecklistItem!).ToDictionary(g => g.Key, g => g.Select(p => p.Page).ToList());
+    var expenseAccounts = SampleData.Accounts.Where(a => a.Group == "Expense").ToList();
+
+    // Renders the little "where did this value come from" tag beside each field.
+    string Tag(string key) => f[key].Status switch
+    {
+        "read" => $"<span class='ocr-tag ocr-read' title='Read from page {f[key].Page}'><i class='bi bi-check2'></i> read p.{f[key].Page}</span>",
+        "suggested" => "<span class='ocr-tag ocr-sugg'><i class='bi bi-lightbulb'></i> suggested — verify</span>",
+        _ => "<span class='ocr-tag ocr-miss'><i class='bi bi-pencil'></i> please fill in</span>"
+    };
+    string Cls(string key) => "ocr-field-" + f[key].Status;
+}
+
+<div class="alert alert-light border d-flex flex-wrap align-items-center gap-3 mb-3">
+    <i class="bi bi-magic fs-4 text-primary"></i>
+    <div class="flex-fill">
+        <b>@Model.FileName</b> — @Model.Pages pages read. Detected a <b>@Model.DetectedType</b> packet.
+        <div class="small text-body-secondary">This is a <b>draft</b>. Nothing is archived until you confirm.</div>
+    </div>
+    <span class="ocr-tag ocr-read fs-6"><i class="bi bi-check2"></i> @read read</span>
+    <span class="ocr-tag ocr-sugg fs-6"><i class="bi bi-lightbulb"></i> @sugg to verify</span>
+    <span class="ocr-tag ocr-miss fs-6"><i class="bi bi-pencil"></i> @miss to fill in</span>
+</div>
+
+<form asp-action="Confirm" asp-route-id="@Model.DraftId" method="post">
+<div class="row g-3">
+    <!-- LEFT: the scan -->
+    <div class="col-xl-6">
+        <div class="card scan-viewer">
+            <div class="card-header d-flex align-items-center gap-2">
+                <span>Scan</span>
+                <span class="small text-body-secondary" id="pageLabel"></span>
+                <div class="ms-auto btn-group btn-group-sm">
+                    <button type="button" class="btn btn-light" id="zoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                    <button type="button" class="btn btn-light" id="zoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                </div>
+            </div>
+            <div class="scan-stage" id="stage"><img id="pageImg" alt="Scanned page" /></div>
+            <div class="scan-thumbs">
+                @foreach (var p in Model.PageMap)
+                {
+                    <button type="button" class="thumb" data-page="@p.Page" data-img="@Url.Content($"~/portal/sample/jhs2026-03-053-{p.Image}.jpg")" data-kind="@p.Kind" title="@p.Page · @p.Kind">
+                        <img src="~/portal/sample/jhs2026-03-053-@(p.Image).jpg" alt="Page @p.Page" loading="lazy" /><span>@p.Page</span>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">Pages found in the packet</div>
+            <div class="list-group list-group-flush small">
+                @foreach (var p in Model.PageMap)
+                {
+                    <button type="button" class="list-group-item list-group-item-action d-flex gap-2 page-link" data-page="@p.Page">
+                        <span class="text-body-secondary" style="width:44px">p. @p.Page</span>
+                        <span class="flex-fill">@p.Kind</span>
+                        @if (p.ChecklistItem is not null) { <span class="ocr-tag ocr-read"><i class="bi bi-list-check"></i> checklist</span> }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: what was read -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-section">
+                    <div class="section-title mb-3"><span class="step">1</span>Voucher</div>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">DV No. @Html.Raw(Tag("DvNo"))</label>
+                            <input class="form-control fw-semibold @Cls("DvNo")" name="DvNo" placeholder="e.g. JHS2026-03-053" data-page="2" required />
+                            <div class="form-text">@f["DvNo"].Note</div></div>
+                        <div class="col-md-6"><label class="form-label">DV Date @Html.Raw(Tag("Date"))</label>
+                            <input class="form-control @Cls("Date")" type="date" name="Date" data-page="2" required /></div>
+                        <div class="col-md-8"><label class="form-label">Transaction type <span class="ocr-tag ocr-read"><i class="bi bi-check2"></i> read p.1</span></label>
+                            <select class="form-select ocr-field-read" name="Type" data-page="1">@foreach (var t in SampleData.Templates) { <option selected="@(t.Name == Model.DetectedType)">@t.Name</option> }</select></div>
+                        <div class="col-md-4"><label class="form-label">Fund Cluster @Html.Raw(Tag("FundCluster"))</label>
+                            <input class="form-control @Cls("FundCluster")" value="@f["FundCluster"].Value" data-page="2" /></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title mb-3"><span class="step">2</span>Payee &amp; particulars</div>
+                    <div class="row g-3">
+                        <div class="col-md-8"><label class="form-label">Payee @Html.Raw(Tag("Payee"))</label>
+                            <input class="form-control @Cls("Payee")" value="@f["Payee"].Value" data-page="2" />
+                            <div class="form-text">@f["Payee"].Note</div></div>
+                        <div class="col-md-4"><label class="form-label">TIN @Html.Raw(Tag("Tin"))</label>
+                            <input class="form-control mono @Cls("Tin")" value="@f["Tin"].Value" data-page="2" /></div>
+                        <div class="col-12"><label class="form-label">Address @Html.Raw(Tag("Address"))</label>
+                            <input class="form-control @Cls("Address")" value="@f["Address"].Value" data-page="2" /></div>
+                        <div class="col-12"><label class="form-label">Particulars @Html.Raw(Tag("Particulars"))</label>
+                            <textarea class="form-control @Cls("Particulars")" rows="2" data-page="2">@f["Particulars"].Value</textarea></div>
+                        <div class="col-md-6"><label class="form-label">Responsibility Center @Html.Raw(Tag("Rc"))</label>
+                            <input class="form-control @Cls("Rc")" value="@f["Rc"].Value" data-page="2" /></div>
+                        <div class="col-md-6"><label class="form-label">MFO/PAP @Html.Raw(Tag("MfoPap"))</label>
+                            <input class="form-control @Cls("MfoPap")" value="@f["MfoPap"].Value" data-page="2" /></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title mb-3"><span class="step">3</span>Accounting entry <span class="ocr-tag ocr-read ms-1"><i class="bi bi-check2"></i> read p.2</span></div>
+                    <table class="table table-sm align-middle mb-2">
+                        <thead class="small text-body-secondary"><tr><th>UACS account</th><th class="text-end" style="width:150px">Amount</th></tr></thead>
+                        <tbody>
+                            @foreach (var l in Model.Lines)
+                            {
+                                <tr><td><select class="form-select form-select-sm ocr-field-read" data-page="2">@foreach (var a in expenseAccounts) { <option selected="@(a.Code == l.Code)">@a.Code · @a.Title</option> }</select></td>
+                                    <td><input class="form-control form-control-sm text-end ocr-field-read" value="@l.Amount.ToString("0.00")" data-page="2" /></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                    <div class="row g-3">
+                        <div class="col-4"><label class="form-label small">Gross</label><input class="form-control form-control-sm text-end" value="5,400.00" readonly /></div>
+                        <div class="col-4"><label class="form-label small">Tax withheld</label><input class="form-control form-control-sm text-end" value="0.00" /></div>
+                        <div class="col-4"><label class="form-label small">Net amount due @Html.Raw(Tag("Amount"))</label><input class="form-control form-control-sm text-end fw-bold @Cls("Amount")" value="5,400.00" data-page="2" /></div>
+                    </div>
+                    <div class="form-text"><i class="bi bi-check-circle text-success"></i> @f["Amount"].Note</div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title mb-3"><span class="step">4</span>Payment</div>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">Check / ADA No. @Html.Raw(Tag("CheckNo"))</label>
+                            <input class="form-control mono @Cls("CheckNo")" name="CheckNo" data-page="3" required />
+                            <div class="form-text">@f["CheckNo"].Note</div></div>
+                        <div class="col-md-6"><label class="form-label">Date paid @Html.Raw(Tag("PaidDate"))</label>
+                            <input class="form-control @Cls("PaidDate")" type="date" data-page="2" /></div>
+                        <div class="col-md-6"><label class="form-label">Bank / Account @Html.Raw(Tag("Bank"))</label>
+                            <input class="form-control @Cls("Bank")" value="@f["Bank"].Value" data-page="2" /></div>
+                        <div class="col-md-6"><label class="form-label">Received by @Html.Raw(Tag("ReceivedBy"))</label>
+                            <input class="form-control @Cls("ReceivedBy")" value="@f["ReceivedBy"].Value" data-page="2" /></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title mb-1"><span class="step">5</span>Checklist — @template.Name</div>
+                    <div class="small text-body-secondary mb-3">Items ticked automatically where a matching page was found. Please confirm the rest.</div>
+                    <div class="checklist">
+                        @for (var i = 0; i < template.Items.Count; i++)
+                        {
+                            var item = template.Items[i];
+                            var pages = found.TryGetValue(item, out var pg) ? pg : null;
+                            <div class="item">
+                                <div class="btn-group btn-group-sm">
+                                    <input type="radio" class="btn-check" name="c@(i)" id="c@(i)y" checked="@(pages is not null)" /><label class="btn btn-outline-success btn-mark" for="c@(i)y">✓</label>
+                                    <input type="radio" class="btn-check" name="c@(i)" id="c@(i)n" /><label class="btn btn-outline-secondary btn-mark" for="c@(i)n">NA</label>
+                                    <input type="radio" class="btn-check" name="c@(i)" id="c@(i)x" checked="@(pages is null)" /><label class="btn btn-outline-danger btn-mark" for="c@(i)x"><i class="bi bi-dash"></i></label>
+                                </div>
+                                <div class="label">@item</div>
+                                @if (pages is not null) { <button type="button" class="ocr-tag ocr-read border-0 page-link" data-page="@pages[0]">found p.@string.Join(",", pages)</button> }
+                                else { <span class="ocr-tag ocr-miss">not found</span> }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-white d-flex flex-wrap gap-2 align-items-center">
+                <span class="small text-body-secondary">The uploaded file is kept with the DV.</span>
+                <a class="btn btn-light ms-auto" asp-action="Upload">Save draft for later</a>
+                <button class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i>Confirm &amp; Archive</button>
+            </div>
+        </div>
+    </div>
+</div>
+</form>
+
+@section Scripts {
+<script>
+    const img = document.getElementById("pageImg"), label = document.getElementById("pageLabel");
+    const thumbs = [...document.querySelectorAll(".thumb")];
+    let zoom = 1;
+    function go(page) {
+        const t = thumbs.find(x => x.dataset.page == page) || thumbs[0];
+        thumbs.forEach(x => x.classList.toggle("active", x === t));
+        img.src = t.dataset.img;
+        label.textContent = `page ${t.dataset.page} of ${thumbs.length} · ${t.dataset.kind}`;
+        t.scrollIntoView({ block: "nearest", inline: "center" });
+    }
+    thumbs.forEach(t => t.addEventListener("click", () => go(t.dataset.page)));
+    document.querySelectorAll(".page-link").forEach(b => b.addEventListener("click", () => go(b.dataset.page)));
+    // Clicking into a field shows the page it came from.
+    document.querySelectorAll("[data-page]:is(input,select,textarea)").forEach(el => el.addEventListener("focus", () => go(el.dataset.page)));
+    const setZoom = z => { zoom = Math.min(3, Math.max(1, z)); img.style.width = (zoom * 100) + "%"; };
+    document.getElementById("zoomIn").addEventListener("click", () => setZoom(zoom + 0.5));
+    document.getElementById("zoomOut").addEventListener("click", () => setZoom(zoom - 0.5));
+    go(2);
+</script>
+}

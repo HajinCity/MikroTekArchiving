@@ -1,0 +1,49 @@
+@model MikroTekArchiving.Services.SessionStatus
+@{
+    ViewData["Title"] = "Status";
+    ViewData["Accent"] = "rgba(237,44,0,1.00)";
+
+    static string Hms(TimeSpan t) =>
+        t.TotalDays >= 1 ? $"{(int)t.TotalDays}d {t.Hours:00}:{t.Minutes:00}:{t.Seconds:00}"
+                         : $"{t.Hours:00}:{t.Minutes:00}:{t.Seconds:00}";
+}
+
+<div class="box hs-panel">
+    <div class="hs-welcome">Welcome <b>@Model.VoucherCode</b>!</div>
+    <table class="tabula hs-table">
+        <tr><td>Plan:</td><td>@Model.PlanName</td></tr>
+        <tr><td>IP address:</td><td>@Model.IpAddress</td></tr>
+        <tr><td>MAC address:</td><td>@Model.MacAddress</td></tr>
+        <tr><td>Connected:</td><td id="uptime" data-seconds="@((long)Model.Uptime.TotalSeconds)">@Hms(Model.Uptime)</td></tr>
+        <tr><td>Time left:</td><td id="timeleft" data-seconds="@((long)Model.TimeLeft.TotalSeconds)"><b>@Hms(Model.TimeLeft)</b></td></tr>
+        <tr><td>Expires at:</td><td>@Model.ExpiresAt.ToString("MMM d, yyyy h:mm tt")</td></tr>
+    </table>
+
+    <form asp-action="Logout" method="post" class="customform hs-actions">
+        <button type="submit">Log off</button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        // Live clocks. When time runs out, go back to the login page.
+        (function () {
+            var up = document.getElementById("uptime"), left = document.getElementById("timeleft");
+            var upSec = parseInt(up.dataset.seconds, 10), leftSec = parseInt(left.dataset.seconds, 10);
+            function fmt(s) {
+                var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+                var p = function (n) { return (n < 10 ? "0" : "") + n; };
+                return (d > 0 ? d + "d " : "") + p(h) + ":" + p(m) + ":" + p(x);
+            }
+            setInterval(function () {
+                upSec++; leftSec--;
+                up.textContent = fmt(upSec);
+                if (leftSec <= 0) {
+                    window.location = "@Url.Action("Login", "Hotspot", new { reason = "expired" })";
+                    return;
+                }
+                left.innerHTML = "<b>" + fmt(leftSec) + "</b>";
+            }, 1000);
+        })();
+    </script>
+}

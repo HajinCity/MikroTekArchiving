@@ -1,0 +1,70 @@
+@*  Charts shown on every DV: amount split, expense breakdown, cash advance impact, and (Job Orders) labor days. *@
+@model DvRow
+@{
+    var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+
+    // Cash advance: what was already spent before this DV, this DV, what remains after it.
+    var before = ca.Vouchers.Where(v => v.Date < Model.Date || (v.Date == Model.Date && string.CompareOrdinal(v.DvNo, Model.DvNo) < 0)).Sum(v => v.Net);
+    var after = ca.Amount - before - Model.Net;
+    var labor = SampleData.Labor.TryGetValue(Model.Id, out var l) ? l : null;
+}
+<div class="row g-3">
+    <!-- 1. Amount split (kit meter) -->
+    <div class="col-md-6">
+        <ui-card class="h-100">
+            <partial name="UI/_Meter" model="@(new Meter("Where the gross amount goes", Model.Gross,
+                [new("Net paid", Model.Net, "s1"), new("Withheld for BIR", Model.Taxes, "s2")],
+                $"{Fmt.Peso(Model.Gross)} gross = net paid to payee + tax withheld"))" />
+            @if (Model.Taxes == 0) { <div class="small text-body-secondary mt-1">No tax withheld on this DV.</div> }
+        </ui-card>
+    </div>
+
+    <!-- 2. Cash advance impact (emphasis: this DV in blue, the rest muted) -->
+    <div class="col-md-6">
+        <ui-card class="h-100">
+            <partial name="UI/_Meter" model="@(new Meter($"Charge against cash advance {ca.PayrollNo}", ca.Amount,
+                [new("Earlier DVs", before, "muted"), new("This DV", Model.Net, "s1"), new("Left", after, "track")],
+                $"{Fmt.Peso(ca.Amount)} released · this DV uses {(Model.Net / ca.Amount * 100):0.#}%"))" />
+        </ui-card>
+    </div>
+
+    <!-- 3. Expense breakdown by UACS (kit chart) -->
+    <div class="col-md-@(labor is null ? "12" : "6")">
+        <ui-card class="h-100">
+            <partial name="UI/_Chart" model="@(new ChartSpec(ChartType.HBar, Model.Lines.Select(x => x.Title), [new("Gross", Model.Lines.Select(x => x.Amount))],
+                "Expense breakdown by UACS account", $"{Model.Lines.Count} account line(s) · gross {Fmt.Peso(Model.Gross)}", Height: Math.Max(120, 60 + Model.Lines.Count * 40)))" />
+        </ui-card>
+    </div>
+
+    @if (labor is not null)
+    {
+        var first = labor[0];
+        var daysInView = 15;
+        <!-- 4. Job Order: labor days -->
+        <div class="col-md-6">
+            <div class="card h-100"><div class="card-body viz">
+                <div class="ui-chart-title">Labor days (Timebook &amp; Payroll)</div>
+                <div class="ui-chart-sub mb-2">@(new DateTime(first.Year, first.Month, 1).ToString("MMMM yyyy")) · days 1–@daysInView</div>
+                @foreach (var w in labor)
+                {
+                    <div class="small mb-1"><b>@w.Name</b> · @w.Occupation · @w.Days.Length days × @Fmt.Peso(w.DailyRate) = <b>@Fmt.Peso(w.Amount)</b></div>
+                    <div class="daystrip mb-2" role="img" aria-label="@w.Name worked @w.Days.Length days">
+                        @for (var d = 1; d <= daysInView; d++)
+                        {
+                            var date = new DateTime(w.Year, w.Month, d);
+                            var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                            var worked = w.Days.Contains(d);
+                            <div class="d @(worked ? "work" : weekend ? "wkend" : "")" tabindex="0"
+                                 data-tip="<b>@date.ToString("ddd, MMM d")</b><br />@(worked ? $"Worked · {Fmt.Peso(w.DailyRate)}" : weekend ? "Weekend" : "No work")">@d</div>
+                        }
+                    </div>
+                }
+                <div class="legend">
+                    <span><span class="sw seg-1"></span>Worked</span>
+                    <span><span class="sw" style="background:repeating-linear-gradient(135deg,#f3f5f9 0 3px,#e3e7ee 3px 5px)"></span>Weekend</span>
+                    <span><span class="sw seg-track"></span>No work</span>
+                </div>
+            </div></div>
+        </div>
+    }
+</div>

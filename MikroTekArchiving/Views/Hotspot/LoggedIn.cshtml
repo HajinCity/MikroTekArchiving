@@ -1,0 +1,24 @@
+@*  Same job as alogin.html: a short loading screen, then go to the Status page. *@
+@{
+    Layout = null;
+    var statusUrl = Url.Action("Status", "Hotspot");
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Logging in...</title>
+    <meta http-equiv="refresh" content="2; url=@statusUrl">
+    <meta http-equiv="pragma" content="no-cache">
+    <style>
+        body { margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: Arial, sans-serif; }
+        .loader { text-align: center; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="loader">
+        <img src="~/hotspot/images/loader.svg" alt="Loading" /><br />
+        You are now connected. Redirecting...
+    </div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+@* Tiny trend line. Model: decimal[] values. Pure SVG, no library. *@
+@model decimal[]
+@{
+    var v = Model ?? [];
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    const double w = 100, h = 28, pad = 3;
+    var min = v.Length == 0 ? 0 : (double)v.Min();
+    var max = v.Length == 0 ? 1 : (double)v.Max();
+    var range = max - min == 0 ? 1 : max - min;
+    string X(int i) => (v.Length < 2 ? w / 2 : pad + i * (w - 2 * pad) / (v.Length - 1)).ToString("0.##", inv);
+    string Y(decimal d) => (h - pad - ((double)d - min) / range * (h - 2 * pad)).ToString("0.##", inv);
+    var pts = string.Join(" ", v.Select((d, i) => $"{X(i)},{Y(d)}"));
+}
+@if (v.Length > 1)
+{
+    <svg class="ui-spark" viewBox="0 0 @w @h" preserveAspectRatio="none" role="img" aria-label="Trend">
+        <polyline points="@pts" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+        <circle cx="@X(v.Length - 1)" cy="@Y(v[^1])" r="3" fill="currentColor" />
+    </svg>
+}

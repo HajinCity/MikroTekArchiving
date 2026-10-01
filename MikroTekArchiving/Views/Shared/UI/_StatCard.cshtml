@@ -1,0 +1,35 @@
+@* Reusable KPI card. Model: MikroTek.Archiving.UI.StatCard *@
+@model MikroTek.Archiving.UI.StatCard
+@{
+    string? trendCls = null; string? trendIcon = null;
+    if (Model.Trend is decimal t)
+    {
+        var good = (t >= 0) == Model.TrendUpIsGood;
+        trendCls = t == 0 ? "flat" : good ? "good" : "bad";
+        trendIcon = t > 0 ? "bi-arrow-up-right" : t < 0 ? "bi-arrow-down-right" : "bi-dash";
+    }
+}
+<div class="card ui-stat ui-stat--@Model.Variant tone-@Model.Tone">
+    @if (Model.Href is not null) { <a href="@Model.Href" class="stretched-link" aria-label="@Model.Label"></a> }
+    @if (Model.Variant == "plain")
+    {
+        <div class="ui-stat-value">@Model.Value</div>
+        <div class="ui-stat-label">@Model.Label</div>
+    }
+    else
+    {
+        <div class="ui-stat-icon"><i class="bi @Model.Icon"></i></div>
+        <div class="ui-stat-text">
+            <div class="ui-stat-value">@Model.Value</div>
+            <div class="ui-stat-label">@Model.Label</div>
+        </div>
+    }
+    @if (Model.Hint is not null || Model.Trend is not null || Model.Spark is not null)
+    {
+        <div class="ui-stat-foot">
+            @if (Model.Trend is decimal tr) { <span class="ui-trend @trendCls"><i class="bi @trendIcon"></i> @(Math.Abs(tr).ToString("0.#"))%</span> }
+            @if (Model.Hint is not null) { <span class="ui-stat-hint">@Model.Hint</span> }
+            @if (Model.Spark is not null) { <span class="ui-stat-spark"><partial name="UI/_Sparkline" model="Model.Spark" /></span> }
+        </div>
+    }
+</div>

@@ -1,0 +1,64 @@
+@model List<DvRow>
+@{
+    ViewData["Title"] = "Disbursement Vouchers";
+    ViewData["Crumb"] = "Disbursements";
+    string? q = Context.Request.Query["q"], dept = Context.Request.Query["dept"], status = Context.Request.Query["status"];
+
+    var grid = DataGrid.For(Model)
+        .Text("DV No.", v => v.DvNo, href: v => Url.Action("Details", new { id = v.Id }), nowrap: true)
+        .Text("Dept", v => v.Dept, hideOnMobile: true)
+        .Date("Date", v => v.Date)
+        .Text("Payee", v => v.Payee)
+        .Text("Particulars", v => v.Particulars, hideOnMobile: true, css: "small text-body-secondary text-truncate grid-clip")
+        .Money("Gross", v => v.Gross, total: true, hideOnMobile: true)
+        .Money("Tax", v => v.Taxes, total: true, hideOnMobile: true)
+        .Money("Net", v => v.Net, total: true)
+        .Text("Check No.", v => v.CheckNo, hideOnMobile: true, css: "mono")
+        .Text("Docs", v => $"{v.DocsDone}/{v.Checklist.Count}", hideOnMobile: true)
+        .Badge("Packet", v => v.IsComplete ? "Complete" : "Incomplete", v => v.IsComplete ? "green" : "orange")
+        .Actions(v => $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Details", new { id = v.Id })}\" title=\"Open\"><i class=\"bi bi-eye\"></i></a> "
+                    + $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Print", new { id = v.Id })}\" title=\"Print record\"><i class=\"bi bi-printer\"></i></a>")
+        .Build("dvGrid", pageSize: 10, exportName: "disbursement-vouchers", emptyText: "No vouchers match your search.");
+}
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">@Model.Count voucher(s) found</div>
+    <a class="btn btn-outline-primary" asp-action="Create"><i class="bi bi-keyboard me-1"></i>Manual Encode</a>
+    <a class="btn btn-primary" asp-action="Upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Scanned DV</a>
+</div>
+
+<form class="card mb-3 no-print" method="get">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-lg-4">
+            <label class="form-label">Search</label>
+            <input name="q" value="@q" class="form-control" placeholder="DV no., payee, particulars or check no." />
+        </div>
+        <div class="col-6 col-lg-2">
+            <label class="form-label">Department</label>
+            <select name="dept" class="form-select">
+                <option value="">All</option>
+                <option selected="@(dept == "JHS")">JHS</option>
+                <option selected="@(dept == "SHS")">SHS</option>
+            </select>
+        </div>
+        <div class="col-6 col-lg-2">
+            <label class="form-label">Packet</label>
+            <select name="status" class="form-select">
+                <option value="">All</option>
+                <option value="complete" selected="@(status == "complete")">Complete</option>
+                <option value="incomplete" selected="@(status == "incomplete")">Incomplete</option>
+            </select>
+        </div>
+        <div class="col-6 col-lg-2">
+            <label class="form-label">Date from</label>
+            <input type="date" class="form-control" name="from" />
+        </div>
+        <div class="col-6 col-lg-2 d-flex gap-2">
+            <button class="btn btn-primary flex-fill"><i class="bi bi-funnel"></i> Filter</button>
+            <a class="btn btn-light" asp-action="Index" title="Clear"><i class="bi bi-x-lg"></i></a>
+        </div>
+    </div>
+</form>
+
+<ui-card title="DV archive" subtitle="Click a column header to sort · the totals follow your search" icon="bi-folder2-open" flush="true">
+    <partial name="UI/_DataGrid" model="grid" />
+</ui-card>

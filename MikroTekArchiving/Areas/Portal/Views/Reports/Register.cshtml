@@ -1,0 +1,97 @@
+@model CashAdvanceRow
+@{
+    Layout = "_PrintLayout";
+    ViewData["Title"] = $"Cash Disbursements Register – {Model.PayrollNo}";
+    ViewData["Landscape"] = true;
+    const string OfficeSupplies = "5020301000";
+    var dvs = Model.Vouchers.OrderBy(v => v.Date).ThenBy(v => v.DvNo).ToList();
+    var balance = Model.Amount;
+
+    // "Others" lines per DV: every expense except Office Supplies, then the BIR withholdings as negatives.
+    List<(string Desc, string Code, decimal Amt)> Others(DvRow v)
+    {
+        var list = v.Lines.Where(l => l.Code != OfficeSupplies).Select(l => (l.Title, l.Code, l.Amount)).ToList();
+        if (v.Tax1 > 0) list.Add(("Due to BIR- 1%", "2020101000", -v.Tax1));
+        if (v.Tax3 > 0) list.Add(("Due to BIR- 3%", "2020101000", -v.Tax3));
+        return list;
+    }
+    var recap = dvs.SelectMany(v => v.Lines.Select(l => (Desc: l.Title, l.Code, Amt: l.Amount)))
+        .GroupBy(x => (x.Desc, x.Code)).Select(g => (g.Key.Desc, g.Key.Code, Amt: g.Sum(x => x.Amt))).ToList();
+    var t1 = dvs.Sum(v => v.Tax1); var t3 = dvs.Sum(v => v.Tax3);
+    if (t1 > 0) recap.Add(("Due to BIR- 1% (NON VAT)", "2020101000", -t1));
+    if (t3 > 0) recap.Add(("Due to BIR- 3% (NON VAT)", "2020101000", -t3));
+}
+<div class="right italic small">Appendix 43</div>
+<div class="center bold" style="font-size:12pt; margin-bottom:8px">CASH DISBURSEMENTS REGISTER</div>
+<table class="plain small" style="margin-bottom:6px">
+    <tr><td style="width:17%" class="bold">Entity Name:</td><td style="width:40%"><u>DEPARTMENT OF EDUCATION/@SampleData.School- @Model.Dept</u></td>
+        <td style="width:17%" class="bold">Name of Accountable Officer:</td><td>@Model.Officer.ToUpperInvariant()</td></tr>
+    <tr><td class="bold">Sub-Office/District/Division:</td><td><u>JOSEFINA DISTRICT/ DIVISION OF ZAMBOANGA DEL SUR</u></td><td class="bold">Official Designation:</td><td>PRINCIPAL II</td></tr>
+    <tr><td class="bold">Municipality/City/Province:</td><td><u>JOSEFINA DISTRICT</u></td><td class="bold">Station:</td><td>@SampleData.School</td></tr>
+    <tr><td class="bold">Fund Cluster:</td><td><u>REGULAR</u></td><td class="bold">Register No.:</td><td><u>2026-@Model.BatchNo.ToString("00")-00@(Model.Id)</u></td></tr>
+    <tr><td class="bold italic" colspan="2">For the Month of <span style="color:#c8102e">@Model.Period.ToUpperInvariant()</span> @(Model.Dept == "JHS" ? "JUNIOR HIGH" : "SENIOR HIGH")</td><td class="bold">Sheet No.:</td><td><u>1 of 1</u></td></tr>
+</table>
+
+<table class="grid small">
+    <thead>
+        <tr>
+            <th rowspan="3" style="width:7%">Date</th><th rowspan="3" style="width:10%">DV/Payroll/ Check No.</th><th rowspan="3" style="width:15%">Particulars</th>
+            <th colspan="3">Advances for Operating Expenses (19901010)</th>
+            <th colspan="4">BREAKDOWN OF PAYMENTS</th>
+        </tr>
+        <tr><th rowspan="2">Cash Advance</th><th rowspan="2">Payments</th><th rowspan="2">Balance</th>
+            <th>Office Supplies Expenses</th><th colspan="3">OTHERS</th></tr>
+        <tr><th>@OfficeSupplies</th><th>Account Description</th><th>UACS Object Code</th><th>Amount</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>@Fmt.Date(Model.Date)</td><td>@Model.PayrollNo</td><td>@Model.Officer.ToUpperInvariant()</td><td class="num">@Fmt.Num(Model.Amount)</td><td></td><td class="num">@Fmt.Num(Model.Amount)</td><td></td><td></td><td></td><td></td></tr>
+        @foreach (var v in dvs)
+        {
+            balance -= v.Net;
+            var others = Others(v);
+            var os = v.Lines.Where(l => l.Code == OfficeSupplies).Sum(l => l.Amount);
+            var rows = Math.Max(1, others.Count);
+            for (var i = 0; i < rows; i++)
+            {
+                var o = i < others.Count ? others[i] : default;
+                <tr>
+                    @if (i == 0)
+                    {
+                        <td>@Fmt.Date(v.Date)</td><td>@v.DvNo<br />@v.CheckNo</td><td>@v.Payee</td><td></td>
+                        <td class="num">@Fmt.Num(v.Net)</td><td class="num">@Fmt.Num(balance)</td><td class="num">@(os > 0 ? Fmt.Num(os) : "")</td>
+                    }
+                    else
+                    {
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    }
+                    <td>@o.Desc</td><td class="center">@o.Code</td><td class="num">@(o.Desc is null ? "" : Fmt.Acct(o.Amt))</td>
+                </tr>
+            }
+        }
+        <tr class="bold">
+            <td colspan="3" class="center">Totals</td><td class="num">@Fmt.Num(Model.Amount)</td><td class="num">@Fmt.Num(Model.Spent)</td><td class="num">@Fmt.Num(Model.Balance)</td>
+            <td class="num">@Fmt.Num(dvs.SelectMany(v => v.Lines).Where(l => l.Code == OfficeSupplies).Sum(l => l.Amount))</td><td colspan="2"></td>
+            <td class="num">@Fmt.Acct(dvs.Sum(v => Others(v).Sum(o => o.Amt)))</td>
+        </tr>
+    </tbody>
+</table>
+
+<div style="display:flex; gap:16px; margin-top:10px; align-items:flex-start">
+    <table class="grid small" style="width:48%">
+        <thead><tr><th colspan="3" style="text-align:left">Recapitulation:</th></tr><tr><th>Account Description</th><th>UACS Object Code</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+            @foreach (var r in recap) { <tr><td>@r.Desc</td><td class="center">@r.Code</td><td class="num">@Fmt.Acct(r.Amt)</td></tr> }
+            <tr class="bold"><td colspan="2" class="right">Total</td><td class="num">@Fmt.Num(recap.Sum(r => r.Amt))</td></tr>
+        </tbody>
+    </table>
+    <div class="small italic" style="width:52%; padding-top:4px">
+        The total of the 'Advances for Operating Expenses – Payments' column must always be equal to the sum of the totals of the 'Breakdown of Payments' columns.
+        <div class="bold" style="margin-top:6px; font-style:normal">Check: @Fmt.Num(Model.Spent) = @Fmt.Num(recap.Sum(r => r.Amt)) @(Model.Spent == recap.Sum(r => r.Amt) ? "✔ balanced" : "✘ NOT balanced")</div>
+    </div>
+</div>
+
+<div style="display:flex; justify-content:space-between; margin-top:18px" class="small">
+    <div>CERTIFIED CORRECT:<br /><div class="sig"><div class="name">@Model.Officer</div>School Head<br />Signature over Printed Name</div></div>
+    <div>CHECKED BY:<br /><div class="sig"><div class="name">Anely R. Villegas</div>ADAS III</div></div>
+    <div>RECEIVED BY:<br /><div class="sig"><div class="name">Riza P. Quiroga</div>Validator/ADAS III</div></div>
+</div>

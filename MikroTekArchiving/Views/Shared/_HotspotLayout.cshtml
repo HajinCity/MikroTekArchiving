@@ -1,0 +1,229 @@
+@*
+    Layout for the hotspot (user) pages. This is the original login.html design.
+    The left panel (voucher box / status box / logout box) comes from each page via RenderBody().
+    Static files live in wwwroot/hotspot/ (copied from the original hotspot folder).
+*@
+@{
+    var accent = ViewData["Accent"] as string ?? "rgba(2,107,150,1.00)";
+}
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width" />
+    <title>@(ViewData["Title"] is string t ? t + " - " : "")Leonardo National High School</title>
+    <link rel="stylesheet" href="~/hotspot/css/components.css">
+    <link rel="stylesheet" href="~/hotspot/css/responsee.css">
+    <link rel="stylesheet" href="~/hotspot/owl-carousel/owl.carousel.css">
+    <link rel="stylesheet" href="~/hotspot/owl-carousel/owl.theme.css">
+    <link rel="stylesheet" href="~/hotspot/css/template-style.css">
+    <link rel="stylesheet" href="~/hotspot/css/hotspot-mvc.css" asp-append-version="true">
+    <script src="~/hotspot/js/jquery-1.8.3.min.js"></script>
+    <script src="~/hotspot/js/jquery-ui.min.js"></script>
+    <script src="~/hotspot/js/modernizr.js"></script>
+    <script src="~/hotspot/js/responsee.js"></script>
+</head>
+<body class="size-1140">
+    <!-- TOP NAV WITH LOGO -->
+    <header>
+        <nav>
+            <div class="line">
+                <div class="top-nav">
+                    <div class="s-12 l-3">
+                        <div class="box" style="border-top: solid 0.8em @accent">
+                            <a asp-controller="Hotspot" asp-action="Login"><img src="~/hotspot/images/logo.gif" alt="Logo"></a>
+                        </div>
+
+                        @RenderBody()
+
+                    </div>
+                    <p class="nav-text">Menu</p>
+                    <ul class="top-ul chevron">
+                        <div class="s-12 l-9">
+                            <div class="right">
+                                <li>
+                                    <a>Contact</a>
+                                    <ul>
+                                        <li><a>Cellphone: +63905 860 2104</a></li>
+                                        <li><a>email: leonardonhs@gmail.com</a></li>
+                                        <li><a>facebook: https://www.facebook.com/61556626117484</a></li>
+                                    </ul>
+                                </li>
+                            </div>
+                        </div>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <section>
+        <!-- CAROUSEL -->
+        <div id="carousel">
+            <div id="owl-demo" class="owl-carousel owl-theme">
+                <div class="item">
+                    <img src="~/hotspot/img/first.jpg" alt="">
+                    <div class="carousel-text">
+                        <div class="line">
+                            <div class="s-12 l-9 right"><h2>Welcome to Leonardo National High School</h2></div>
+                            <div class="s-12 l-9 right"><p>Excellence Through Education.</p></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="item">
+                    <img src="~/hotspot/img/second.jpg" alt="">
+                    <div class="carousel-text">
+                        <div class="line">
+                            <div class="s-12 l-9 right"><h2>OUR SCHOOL CANTEEN</h2></div>
+                            <div class="s-12 l-9 right"><p>From Classroom to Canteen – Always Delicious.</p></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="item">
+                    <img src="~/hotspot/img/third.jpg" alt="">
+                    <div class="carousel-text">
+                        <div class="line">
+                            <div class="s-12 l-9 right"><h2>SENIOR HIGH SCHOOL</h2></div>
+                            <div class="s-12 l-9 right"><p>Where Senior High Energy Meets Great Taste.</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FIRST BLOCK -->
+        <div id="first-block">
+            <div class="line">
+                <h2>Senior High School – Courses Offered</h2>
+                <p class="subtitile">Choose Your Track, Chase Your Dream.</p>
+                <div class="margin">
+                    <div class="s-12 l-3 margin-bottom">
+                        <i class="icon-display_screen icon2x"></i>
+                        <h3>TVL-COMPUTER SYSTEM SERVICING</h3>
+                        <p>"Turning Tech Skills into Life Skills."</p>
+                    </div>
+                    <div class="s-12 l-3 margin-bottom">
+                        <i class="icon-star icon2x"></i>
+                        <h3>TVL-Home ECONOMICS (Cookery, Bread &amp; Pastry, Housekeeping)</h3>
+                        <p>"Cooking, Caring, and Creating Futures."</p>
+                    </div>
+                    <div class="s-12 l-3 margin-bottom">
+                        <i class="icon-calendar icon2x"></i>
+                        <h3>TVL-Agri-crop Production</h3>
+                        <p>"Harvesting Skills for a Sustainable Tomorrow."</p>
+                    </div>
+                    <div class="s-12 l-3 margin-bottom">
+                        <i class="icon-math icon2x"></i>
+                        <h3>GENERAL ACADEMIC STRAND</h3>
+                        <p>"Prepared for Anything, Ready for Everything."</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECOND BLOCK -->
+        <div id="second-block">
+            <div class="line">
+                <div class="margin-bottom">
+                    <div class="margin">
+                        <article class="s-12 l-8 center">
+                            <h1>SCHOOL EVENTS</h1>
+                            <p class="margin-bottom">Celebrating unity, talent, and learning, where every moment inspires growth, strengthens friendships, and creates memories that last a lifetime together.</p>
+                            <a class="button s-12 l-4 center" href="https://www.facebook.com/profile.php?id=61556626117484">Read more</a>
+                        </article>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GALLERY -->
+        <div id="third-block">
+            <div class="line">
+                <h2>LEONARDO NATIONAL HIGH SCHOOL COMUNITY</h2>
+                <p class="subtitile">A strong school community grows through shared learning, respect, and teamwork, nurturing each member toward success and lifelong friendships together.</p>
+                <div class="margin">
+                    <div class="s-12 l-3">
+                        <img src="~/hotspot/img/first-small.jpg" alt="">
+                        <p class="subtitile">We extend our deepest gratitude to all parents, teachers, and stakeholders who attended our First General PTA Assembly for the school year. It was a meaningful gathering filled with transparency, collaboration, and fresh beginnings.</p>
+                    </div>
+                    <div class="s-12 l-3">
+                        <img src="~/hotspot/img/second-small.jpg" alt="">
+                        <p class="subtitile">We express our deepest gratitude for the successful conduct of the 2nd Quarter National Simultaneous Earthquake Drill (NSED) held in our school.
+This meaningful activity was made possible through the active participation and strong support of our key partners in disaster preparedness:
+👮‍♂️ PMAJ Juvic D. Aballe – Acting Chief of Police
+🔥 SFO3 Joel Q. Alvarez – Municipal Fire Marshal (MFM)
+🚨 AA6 Bunny James Arnaiz – MDRRMO</p>
+                    </div>
+                    <div class="s-12 l-3">
+                        <img src="~/hotspot/img/third-small.jpg" alt="">
+                        <p class="subtitile">Our sincerest gratitude for the generous donation of cleaning tools in support of this year’s Brigada Eskwela. This act of kindness reflects not only the bank’s strong commitment to community development but also its genuine support for education. The donation plays a vital role in helping us maintain a clean, safe, and welcoming environment for our learners. More than just a gift, it symbolizes the true spirit of bayanihan—working hand in hand to build a better future for our students. Thank you for being a steadfast partner in education.
+Mabuhay kayo at maraming salamat po!</p>
+                    </div>
+                    <div class="s-12 l-3">
+                        <img src="~/hotspot/img/fourth-small.jpg" alt="">
+                        <p class="subtitile">We would like to express our heartfelt gratitude for the success of the District Awarding Ceremony.
+Thank you to our District Supervisor Dr. Ambert Saavedra for initiating this wonderful event, recognizing the hard work and achievements of the learners and teachers. Your leadership and vision made this possible.
+We extend our deepest gratitude to our Principal for the unwavering support and guidance during our recent school evaluation. Your leadership, encouragement, and hands-on involvement were truly instrumental in helping us prepare and showcase the best of what our school can offer.
+Congratulations to all the awardees, and thank you to everyone who contributed to making this celebration meaningful and memorable!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="fourth-block">
+            <div class="line">
+                <div id="owl-demo2" class="owl-carousel owl-theme">
+                    <div class="item">
+                        <h2>The DepEd Vision</h2>
+                        <p class="s-12 l-8 center">We dream of Filipinos
+who passionately love their country
+and whose values and competencies
+enable them to realize their full potential
+and contribute meaningfully to building the nation.
+
+As a learner-centered public institution,
+the Department of Education
+continuously improves itself
+to better serve its stakeholders.</p>
+                    </div>
+                    <div class="item">
+                        <h2>The DepEd Mission</h2>
+                        <p class="s-12 l-8 center">To protect and promote the right of every Filipino to quality, equitable, culture-based, and complete basic education where:
+
+Students learn in a child-friendly, gender-sensitive, safe, and motivating environment.
+Teachers facilitate learning and constantly nurture every learner.
+Administrators and staff, as stewards of the institution, ensure an enabling and supportive environment for effective learning to happen.
+Family, community, and other stakeholders are actively engaged and share responsibility for developing life-long learners.</p>
+                    </div>
+                    <div class="item">
+                        <h2>Our Core Values</h2>
+                        <p class="s-12 l-8 center">Maka-Diyos, Maka-tao, Makakalikasan, Makabansa</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="line">
+            <div class="s-12 l-12">
+                <p class="right" style="text-align:right">
+                    Copyright @DateTime.Now.Year, Leonardo National High School<br>
+                    Josefina, Zamboanga del Sur<br>
+                    0905 860 2104
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/hotspot/owl-carousel/owl.carousel.js"></script>
+    <script>
+        jQuery(document).ready(function ($) {
+            $("#owl-demo").owlCarousel({ slideSpeed: 300, autoPlay: true, navigation: false, pagination: false, singleItem: true, transitionStyle: "fadeUp" });
+            $("#owl-demo2").owlCarousel({ slideSpeed: 300, autoPlay: true, navigation: false, pagination: true, singleItem: true });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

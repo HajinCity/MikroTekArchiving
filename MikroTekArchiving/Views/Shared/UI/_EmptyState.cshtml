@@ -1,0 +1,7 @@
+@model MikroTek.Archiving.UI.EmptyState
+<div class="ui-empty">
+    <i class="bi @Model.Icon"></i>
+    <div class="ui-empty-title">@Model.Title</div>
+    @if (Model.Text is not null) { <div class="ui-empty-text">@Model.Text</div> }
+    @if (Model.ActionText is not null) { <a class="btn btn-primary btn-sm mt-3" href="@Model.ActionHref">@Model.ActionText</a> }
+</div>

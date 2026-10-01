@@ -1,0 +1,67 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in · Disbursement Archive</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/ui/ui.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/portal/css/portal.css" asp-append-version="true" />
+</head>
+<body class="app">
+    <div class="login-wrap">
+        <section class="login-hero d-flex">
+            <div>
+                <div class="small text-uppercase opacity-75 mb-2">Republic of the Philippines · Department of Education</div>
+                <h2>Disbursement Voucher<br />Archiving Portal</h2>
+                <p class="opacity-75 mb-5">Leonardo National High School · Josefina District · Division of Zamboanga del Sur</p>
+
+                <div class="feat"><i class="bi bi-folder-check"></i><div><b>Every DV packet in one place</b><br /><span class="small">Scanned documents, checklist and accounting entry per voucher.</span></div></div>
+                <div class="feat"><i class="bi bi-cash-coin"></i><div><b>MOOE cash advance tracking</b><br /><span class="small">See what's spent and what's left for JHS and SHS.</span></div></div>
+                <div class="feat"><i class="bi bi-printer"></i><div><b>Liquidation reports on demand</b><br /><span class="small">Cash Disbursements Register and Alphalist, ready to print.</span></div></div>
+            </div>
+            <div class="small opacity-50">For authorized school finance personnel only.</div>
+        </section>
+
+        <section class="login-form">
+            <div class="inner">
+                <img src="~/hotspot/images/logo.gif" class="login-logo mb-4" alt="Leonardo National High School" />
+                <h3 class="fw-bold mb-1">Sign in</h3>
+                <p class="text-body-secondary mb-4">Use your staff account to continue.</p>
+
+                <form asp-action="Login" method="post">
+                    <div class="mb-3">
+                        <label class="form-label" for="username">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input id="username" name="username" class="form-control" autocomplete="username" required autofocus />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required />
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="remember" name="remember" />
+                            <label class="form-check-label small" for="remember">Keep me signed in</label>
+                        </div>
+                        <span class="small text-body-secondary">Forgot password? Ask the admin.</span>
+                    </div>
+                    <button class="btn btn-primary w-100 py-2 fw-semibold">Sign in</button>
+                </form>
+                <div class="alert alert-warning small mt-4 mb-0">
+                    <i class="bi bi-cone-striped"></i> Template preview — any username/password opens the portal.
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+@* Part-to-whole bar with legend. Model: MikroTek.Archiving.UI.Meter *@
+@model MikroTek.Archiving.UI.Meter
+@{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var en = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    string F(decimal v) => Model.Money ? "₱" + v.ToString("N2", en) : v.ToString("N0", en);
+    string W(decimal v) => (Model.Total == 0 ? 0 : v / Model.Total * 100).ToString("0.##", inv) + "%";
+    var segs = Model.Segments.Where(s => s.Amount > 0).ToList();
+}
+<div class="ui-meter">
+    @if (Model.Title is not null) { <div class="ui-chart-title">@Model.Title</div> }
+    @if (Model.Subtitle is not null) { <div class="ui-chart-sub">@Model.Subtitle</div> }
+    <div class="ui-meter-bar" role="img" aria-label="@string.Join(", ", segs.Select(s => $"{s.Label} {F(s.Amount)}"))">
+        @foreach (var s in segs)
+        {
+            <div class="ui-meter-seg seg-@s.Tone" style="width:@W(s.Amount)" tabindex="0" data-tip="<b>@s.Label</b><br>@F(s.Amount) · @W(s.Amount)"></div>
+        }
+    </div>
+    <div class="ui-legend">
+        @foreach (var s in Model.Segments) { <span><i class="sw seg-@s.Tone"></i>@s.Label <b>@F(s.Amount)</b></span> }
+    </div>
+</div>

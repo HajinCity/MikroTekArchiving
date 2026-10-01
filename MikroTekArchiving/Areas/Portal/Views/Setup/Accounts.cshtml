@@ -1,0 +1,20 @@
+@model List<UacsRow>
+@{ ViewData["Title"] = "UACS Accounts"; ViewData["Crumb"] = "Setup"; }
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">Chart of accounts (Unified Accounts Code Structure) used in DV accounting entries and the Cash Disbursements Register.</div>
+    <button class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Account</button>
+</div>
+<div class="row g-3">
+    @foreach (var g in Model.GroupBy(a => a.Group))
+    {
+        <div class="col-lg-@(g.Key == "Expense" ? "12" : "6")">
+            <div class="card">
+                <div class="card-header">@g.Key accounts <span class="sub">(@g.Count())</span></div>
+                <table class="table table-portal">
+                    <thead><tr><th style="width:170px">UACS Code</th><th>Account Title</th><th style="width:90px"></th></tr></thead>
+                    <tbody>@foreach (var a in g) { <tr><td class="mono fw-semibold">@a.Code</td><td>@a.Title</td><td class="text-end"><button class="btn btn-sm btn-light"><i class="bi bi-pencil"></i></button></td></tr> }</tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

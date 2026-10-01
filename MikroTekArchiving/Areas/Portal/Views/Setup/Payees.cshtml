@@ -1,0 +1,30 @@
+@model List<PayeeRow>
+@{
+    ViewData["Title"] = "Payees"; ViewData["Crumb"] = "Setup";
+    var grid = DataGrid.For(Model)
+        .Text("Name", p => p.Name, css: "fw-semibold")
+        .Text("TIN", p => p.Tin, css: "mono", nowrap: true)
+        .Text("Address", p => p.Address, hideOnMobile: true)
+        .Text("Kind", p => p.Kind, hideOnMobile: true)
+        .Badge("Tax type", p => p.TaxType, p => p.TaxType == "VAT" ? "violet" : p.TaxType == "Non-VAT" ? "blue" : "gray")
+        .Number("DVs", p => p.DvCount)
+        .Actions(p => $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Index", "Vouchers", new { q = p.Name })}\" title=\"View DVs\"><i class=\"bi bi-folder2-open\"></i></a> <button class=\"btn btn-sm btn-light\" data-bs-toggle=\"modal\" data-bs-target=\"#payeeModal\" title=\"Edit\"><i class=\"bi bi-pencil\"></i></button>")
+        .Build("payeeGrid", exportName: "payees");
+}
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">Suppliers, job order workers and employees paid through DVs. Picked from a list when encoding, so TIN and address fill in by themselves.</div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#payeeModal"><i class="bi bi-plus-lg me-1"></i>Add Payee</button>
+</div>
+<ui-card title="Payees" icon="bi-people" flush="true"><partial name="UI/_DataGrid" model="grid" /></ui-card>
+
+<div class="modal fade" id="payeeModal" tabindex="-1"><div class="modal-dialog"><form class="modal-content" asp-action="Save" asp-route-back="Payees" method="post">
+    <div class="modal-header"><h5 class="modal-title">Payee</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body row g-3">
+        <div class="col-12"><label class="form-label">Name</label><input class="form-control" name="Name" /></div>
+        <div class="col-md-6"><label class="form-label">TIN</label><input class="form-control mono" name="Tin" placeholder="000-000-000-000" /></div>
+        <div class="col-md-6"><label class="form-label">Kind</label><select class="form-select" name="Kind"><option>Supplier</option><option>Job Order Worker</option><option>Employee</option></select></div>
+        <div class="col-12"><label class="form-label">Address</label><input class="form-control" name="Address" /></div>
+        <div class="col-md-6"><label class="form-label">Tax type</label><select class="form-select" name="TaxType"><option>Non-VAT</option><option>VAT</option><option>Exempt</option></select></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
+</form></div></div>

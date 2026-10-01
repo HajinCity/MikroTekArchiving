@@ -1,0 +1,40 @@
+@model CashAdvanceRow
+@{
+    Layout = "_PrintLayout";
+    ViewData["Title"] = $"Alphalist – {Model.PayrollNo}";
+    ViewData["Landscape"] = true;
+    var rows = Model.Vouchers.Where(v => v.Taxes > 0).OrderBy(v => v.DvNo).ToList();
+}
+<div class="hdr">
+    Republic of the Philippines<br />Department of Education<br />Region IX, Zamboanga Peninsula<br />DIVISION OF ZAMBOANGA DEL SUR<br />
+    <b>@SampleData.School</b><br /><i>@(Model.Dept == "JHS" ? "JUNIOR HIGH SCHOOL" : "SENIOR HIGH SCHOOL")</i>
+    <div class="title">ALPHABETICAL LIST OF PAYEES FROM WHOM TAXES WERE WITHHELD</div>
+    <i>For the month of @Model.Period.ToUpperInvariant()</i>
+</div>
+
+<table class="grid">
+    <thead>
+        <tr><th rowspan="2">Voucher No.</th><th rowspan="2">INDIVIDUAL/CORPORATION</th><th rowspan="2">GROSS BASE AMOUNT</th><th rowspan="2">TAX BASE AMOUNT</th>
+            <th colspan="2">NON-VAT</th><th colspan="2">VAT</th><th rowspan="2">TOTAL</th><th rowspan="2">REMARKS</th><th rowspan="2">TIN NO.</th></tr>
+        <tr><th>1%</th><th>3%</th><th>1%</th><th>5%</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var v in rows)
+        {
+            <tr>
+                <td>@v.DvNo @v.CheckNo</td><td>@v.Payee</td>
+                <td class="num">@Fmt.Num(v.Gross)</td><td class="num">@Fmt.Num(v.Gross)</td>
+                <td class="num">@Fmt.Acct(-v.Tax1)</td><td class="num">@Fmt.Acct(-v.Tax3)</td><td></td><td></td>
+                <td class="num">@Fmt.Acct(-v.Taxes)</td><td>TO BE REMITTED</td><td class="center">@v.Tin</td>
+            </tr>
+        }
+        <tr><td></td><td class="center">x-x-x-x-x-x-x-x-x-x-x-x-x</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr class="bold">
+            <td></td><td class="center">TOTAL:</td><td class="num">@Fmt.Num(rows.Sum(v => v.Gross))</td><td class="num">@Fmt.Num(rows.Sum(v => v.Gross))</td>
+            <td class="num">@Fmt.Acct(-rows.Sum(v => v.Tax1))</td><td class="num">@Fmt.Acct(-rows.Sum(v => v.Tax3))</td><td class="center">-</td><td class="center">-</td>
+            <td class="num">@Fmt.Acct(-rows.Sum(v => v.Taxes))</td><td></td><td></td>
+        </tr>
+    </tbody>
+</table>
+
+<div style="margin-top:30px">Prepared by:<br /><div class="sig" style="margin-left:180px"><div class="name">Anely R. Villegas</div>Senior Bookkeeper</div></div>

@@ -1,0 +1,266 @@
+@*
+    UI KIT GALLERY — live examples of every reusable component, with copy-paste code.
+    Everything here works in any area/page of the project (partials live in Views/Shared/UI).
+*@
+@{
+    ViewData["Title"] = "UI Kit";
+    ViewData["Crumb"] = "Developer";
+    var dvs = SampleData.Vouchers;
+    var months = new[] { "Apr", "May", "Jun", "Jul", "Aug", "Sep" };
+
+    var grid = DataGrid.For(dvs.OrderByDescending(v => v.Date))
+        .Text("DV No.", v => v.DvNo, href: v => Url.Action("Details", "Vouchers", new { id = v.Id }), nowrap: true)
+        .Date("Date", v => v.Date)
+        .Text("Payee", v => v.Payee)
+        .Text("Dept", v => v.Dept, hideOnMobile: true)
+        .Money("Gross", v => v.Gross, total: true, hideOnMobile: true)
+        .Money("Net", v => v.Net, total: true)
+        .Badge("Packet", v => v.IsComplete ? "Complete" : "Incomplete", v => v.IsComplete ? "green" : "orange")
+        .Actions(v => $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Details", "Vouchers", new { id = v.Id })}\" title=\"Open\"><i class=\"bi bi-eye\"></i></a>")
+        .Build("kitGrid", pageSize: 5, exportName: "disbursement-vouchers");
+
+    string code(string s) => s.Trim('\n');
+}
+
+<div class="row g-4">
+    <div class="col-lg-2 d-none d-lg-block">
+        <nav class="kit-nav">
+            <a href="#start">Getting started</a>
+            <a href="#stats">Stat cards</a>
+            <a href="#cards">Cards / portlets</a>
+            <a href="#grid">Data grid</a>
+            <a href="#charts">Charts</a>
+            <a href="#meters">Meters &amp; sparklines</a>
+            <a href="#pills">Status pills</a>
+            <a href="#forms">Forms</a>
+            <a href="#feedback">Alerts &amp; dialogs</a>
+            <a href="#tabs">Tabs &amp; timeline</a>
+            <a href="#empty">Empty states</a>
+        </nav>
+    </div>
+
+    <div class="col-lg-10">
+        <!-- ================= GETTING STARTED ================= -->
+        <section class="kit-section" id="start">
+            <h2>Getting started</h2>
+            <p>A reusable front-end kit for bookkeeping / records systems. Copy these into any ASP.NET Core MVC project:</p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <ui-card title="Files" icon="bi-folder2">
+                        <ul class="small mb-0">
+                            <li><code>UI/*.cs</code> — models: StatCard, DataGrid, ChartSpec, Meter, Timeline, EmptyState + the <code>&lt;ui-card&gt;</code> tag helper</li>
+                            <li><code>Views/Shared/UI/_*.cshtml</code> — the partial views</li>
+                            <li><code>wwwroot/ui/</code> — <code>ui.css</code>, <code>ui.js</code>, <code>ui-grid.js</code>, <code>ui-charts.js</code></li>
+                            <li><code>wwwroot/lib/</code> — Bootstrap 5.3, Bootstrap Icons, Chart.js 4 (all offline, no internet needed)</li>
+                            <li>Layout: <code>Areas/Portal/Views/Shared/_PortalLayout.cshtml</code></li>
+                            <li><code>_ViewImports</code>: <code>@@using MikroTek.Archiving.UI</code> and <code>@@addTagHelper *, MikroTek.Archiving</code></li>
+                        </ul>
+                    </ui-card>
+                </div>
+                <div class="col-md-6">
+                    <ui-card title="Theme tokens" icon="bi-palette" subtitle="Re-brand by changing the first block of ui.css">
+                        <div class="row g-2 small">
+                            @foreach (var (name, v) in new[] { ("--app-brand", "var(--app-brand)"), ("--app-topbar", "var(--app-topbar)"), ("--app-accent", "var(--app-accent)"), ("--app-bg", "var(--app-bg)") })
+                            {
+                                <div class="col-3"><div class="kit-swatch border" style="background:@v"></div><code>@name</code></div>
+                            }
+                        </div>
+                        <div class="small text-body-secondary mt-2">Series colours <code>--ui-s1…s8</code> are colour-blind safe and have separate light/dark values. Click <i class="bi bi-moon-stars"></i> in the top bar to preview dark mode.</div>
+                        <div class="d-flex gap-1 mt-2">@for (var i = 1; i <= 8; i++) { <div class="flex-fill rounded" style="height:18px;background:var(--ui-s@(i))" title="--ui-s@(i)"></div> }</div>
+                    </ui-card>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= STAT CARDS ================= -->
+        <section class="kit-section" id="stats">
+            <h2>Stat cards</h2>
+            <p>Headline numbers. Three variants: <b>icon</b> (default), <b>plain</b>, <b>compact</b>. Optional trend, hint, link and sparkline.</p>
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("DVs archived", dvs.Count.ToString(), "bi-folder2-open", "blue"))" /></div>
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Total disbursed", Fmt.Peso(dvs.Sum(v => v.Net)), "bi-cash-coin", "aqua"))" /></div>
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Taxes withheld", Fmt.Peso(dvs.Sum(v => v.Taxes)), "bi-receipt", "orange"))" /></div>
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Incomplete packets", dvs.Count(v => !v.IsComplete).ToString(), "bi-exclamation-triangle", "red"))" /></div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Cash advances", "2", Tone: "blue", Variant: "plain", Hint: "1 open · 1 liquidated"))" /></div>
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Payees", SampleData.Payees.Count.ToString(), Tone: "violet", Variant: "plain"))" /></div>
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("This month", "₱12.6k", "bi-calendar3", "green", Variant: "compact", Trend: -94.2m, TrendUpIsGood: false, Hint: "vs August"))" /></div>
+                <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Monthly DVs", "10", "bi-graph-up", "blue", Variant: "compact", Trend: 25m, Spark: [2, 3, 1, 4, 7, 3], Href: Url.Action("Index", "Vouchers")))" /></div>
+            </div>
+<pre class="kit-code">@code("""
+<partial name="UI/_StatCard" model="@(new StatCard("DVs archived", "10", "bi-folder2-open", "blue"))" />
+<partial name="UI/_StatCard" model="@(new StatCard("Cash advances", "2", Tone: "blue", Variant: "plain", Hint: "1 open"))" />
+<partial name="UI/_StatCard" model="@(new StatCard("Monthly DVs", "10", "bi-graph-up", "blue", Variant: "compact",
+         Trend: 25m, Spark: [2, 3, 1, 4, 7, 3], Href: Url.Action("Index", "Vouchers")))" />
+""")</pre>
+        </section>
+
+        <!-- ================= CARDS ================= -->
+        <section class="kit-section" id="cards">
+            <h2>Cards / portlets</h2>
+            <p>The <code>&lt;ui-card&gt;</code> tag helper wraps any content. Header tools go in <code>&lt;ui-card-tools&gt;</code>; <code>collapsible</code> and <code>closable</code> add buttons; <code>flush</code> removes padding for tables.</p>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <ui-card title="Basic card" subtitle="With a subtitle" icon="bi-card-text">Body content goes here. Cards stretch to the column width.</ui-card>
+                </div>
+                <div class="col-md-4">
+                    <ui-card title="Collapsible" icon="bi-arrows-collapse" collapsible="true">
+                        <ui-card-tools><span class="badge text-bg-light">Tools</span></ui-card-tools>
+                        Click the chevron to collapse this card.
+                    </ui-card>
+                </div>
+                <div class="col-md-4">
+                    <ui-card title="Closable" icon="bi-x-square" closable="true" collapsible="true">Click × to remove it from the page.</ui-card>
+                </div>
+            </div>
+<pre class="kit-code">@code("""
+<ui-card title="Recent DVs" subtitle="last 30 days" icon="bi-folder2-open" collapsible="true" flush="true">
+    <ui-card-tools><a asp-action="Index">View all</a></ui-card-tools>
+    ...any content...
+</ui-card>
+""")</pre>
+        </section>
+
+        <!-- ================= GRID ================= -->
+        <section class="kit-section" id="grid">
+            <h2>Data grid</h2>
+            <p>Search, sort (click a header), paging, totals that follow the search, CSV export (opens in Excel) and print. Rendered on the server, so it still shows data if JavaScript is off.</p>
+            <ui-card title="Disbursement vouchers" icon="bi-table" flush="true">
+                <partial name="UI/_DataGrid" model="grid" />
+            </ui-card>
+<pre class="kit-code">@code("""
+@{
+    var grid = DataGrid.For(Model.Vouchers)
+        .Text("DV No.", v => v.DvNo, href: v => Url.Action("Details", new { id = v.Id }), nowrap: true)
+        .Date("Date", v => v.Date)
+        .Text("Payee", v => v.Payee)
+        .Money("Net", v => v.Net, total: true)
+        .Badge("Packet", v => v.IsComplete ? "Complete" : "Incomplete", v => v.IsComplete ? "green" : "orange")
+        .Actions(v => $"<a class='btn btn-sm btn-light' href='...'><i class='bi bi-eye'></i></a>")
+        .Build("dvGrid", pageSize: 10, exportName: "vouchers");
+}
+<ui-card title="Disbursement vouchers" flush="true"><partial name="UI/_DataGrid" model="grid" /></ui-card>
+""")</pre>
+        </section>
+
+        <!-- ================= CHARTS ================= -->
+        <section class="kit-section" id="charts">
+            <h2>Charts</h2>
+            <p>One partial, six types: <code>Bar</code>, <code>HBar</code>, <code>StackedBar</code>, <code>Line</code>, <code>Area</code>, <code>Donut</code>. Colours, fonts, tooltips and dark mode are handled for you; the <i class="bi bi-table"></i> button shows the numbers as a table.</p>
+            <div class="row g-3">
+                <div class="col-lg-6"><ui-card><partial name="UI/_Chart" model="@(new ChartSpec(ChartType.Bar, months, [new("JHS", [48_200m, 51_900, 39_400, 0, 206_647.20m, 0]), new("SHS", [62_300m, 45_800, 57_100, 0, 217_291.68m, 12_608.32m])], "Net disbursed per month", "Grouped bars · two series"))" /></ui-card></div>
+                <div class="col-lg-6"><ui-card><partial name="UI/_Chart" model="@(new ChartSpec(ChartType.HBar, dvs.SelectMany(v => v.Lines).GroupBy(l => l.Title).OrderByDescending(g => g.Sum(x => x.Amount)).Take(6).Select(g => g.Key), [new("Gross", dvs.SelectMany(v => v.Lines).GroupBy(l => l.Title).OrderByDescending(g => g.Sum(x => x.Amount)).Take(6).Select(g => g.Sum(x => x.Amount)))], "Top expense accounts", "Horizontal bars · one series"))" /></ui-card></div>
+                <div class="col-lg-6"><ui-card><partial name="UI/_Chart" model="@(new ChartSpec(ChartType.Line, months, [new("Cash advance balance", [250_000m, 210_500, 180_300, 250_000, 43_352.80m, 43_352.80m])], "Balance over time", "Line · trend"))" /></ui-card></div>
+                <div class="col-lg-6"><ui-card><partial name="UI/_Chart" model="@(new ChartSpec(ChartType.Area, months, [new("Taxes withheld", [1_200m, 2_450, 1_980, 0, 17_425.14m, 283.68m])], "Taxes withheld", "Area · one series"))" /></ui-card></div>
+                <div class="col-lg-6"><ui-card><partial name="UI/_Chart" model="@(new ChartSpec(ChartType.StackedBar, ["Jul", "Aug", "Sep"], [new("Net paid", [0m, 424_024.52m, 12_522.68m]), new("Withheld", [0m, 17_141.46m, 283.68m])], "Gross = net + withheld", "Stacked bars · part-to-whole"))" /></ui-card></div>
+                <div class="col-lg-6"><ui-card><partial name="UI/_Chart" model="@(new ChartSpec(ChartType.Donut, ["Supplies", "Repairs", "Labor", "Utilities", "Travel"], [new("Gross", [262_762m, 141_960, 5_400, 11_191.64m, 5_744.20m])], "Share of spending", "Donut · up to 5 slices"))" /></ui-card></div>
+            </div>
+<pre class="kit-code">@code("""
+<partial name="UI/_Chart" model="@(new ChartSpec(ChartType.Bar, months,
+    [new("JHS", jhsValues), new("SHS", shsValues)],
+    Title: "Net disbursed per month", Subtitle: "Grouped bars"))" />
+// ChartType: Bar, HBar, StackedBar, Line, Area, Donut   ·   Money: false for counts   ·   Height: 260 (px)
+""")</pre>
+        </section>
+
+        <!-- ================= METERS ================= -->
+        <section class="kit-section" id="meters">
+            <h2>Meters &amp; sparklines</h2>
+            <p>A meter shows parts of one total (e.g. budget used). Sparklines are tiny trends inside stat cards or tables.</p>
+            <div class="row g-3">
+                <div class="col-md-7"><ui-card>
+                    <partial name="UI/_Meter" model="@(new Meter("Cash advance OE-26-07-2117", 250_000m, [new("Earlier DVs", 201_247.20m, "muted"), new("This DV", 5_400m, "s1"), new("Remaining", 43_352.80m, "track")], "₱250,000.00 released"))" />
+                </ui-card></div>
+                <div class="col-md-5"><ui-card title="Sparkline" icon="bi-activity">
+                    <div class="d-flex align-items-center gap-3"><div style="width:140px;color:var(--ui-s1)"><partial name="UI/_Sparkline" model="@(new decimal[] { 3, 5, 4, 8, 6, 9, 12 })" /></div><span class="small text-body-secondary">DVs per week</span></div>
+                </ui-card></div>
+            </div>
+<pre class="kit-code">@code("""
+<partial name="UI/_Meter" model="@(new Meter("Cash advance", 250_000m, [
+    new("Earlier DVs", 201_247.20m, "muted"), new("This DV", 5_400m, "s1"), new("Remaining", 43_352.80m, "track")]))" />
+<partial name="UI/_Sparkline" model="@(new decimal[] { 3, 5, 4, 8, 6, 9, 12 })" />
+""")</pre>
+        </section>
+
+        <!-- ================= PILLS ================= -->
+        <section class="kit-section" id="pills">
+            <h2>Status pills</h2>
+            <p>Use one tone per meaning and keep it consistent across the system.</p>
+            <ui-card>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="ui-pill tone-green">Complete / Paid</span>
+                    <span class="ui-pill tone-orange">Incomplete / Pending</span>
+                    <span class="ui-pill tone-red">Cancelled / Overdue</span>
+                    <span class="ui-pill tone-blue">Open / Draft</span>
+                    <span class="ui-pill tone-violet">For approval</span>
+                    <span class="ui-pill tone-aqua">Remitted</span>
+                    <span class="ui-pill tone-gray">Archived / Closed</span>
+                </div>
+            </ui-card>
+<pre class="kit-code">@code("""<span class="ui-pill tone-green">Complete</span>   <!-- tones: blue aqua orange violet green red yellow gray brand -->""")</pre>
+        </section>
+
+        <!-- ================= FORMS ================= -->
+        <section class="kit-section" id="forms">
+            <h2>Forms</h2>
+            <p>Standard Bootstrap controls, styled by the kit. Money fields use an input group with ₱.</p>
+            <ui-card>
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">Text</label><input class="form-control" placeholder="Payee name" /></div>
+                    <div class="col-md-4"><label class="form-label">Money</label><div class="input-group"><span class="input-group-text">₱</span><input class="form-control text-end" inputmode="decimal" placeholder="0.00" /></div></div>
+                    <div class="col-md-4"><label class="form-label">Date</label><input class="form-control" type="date" /></div>
+                    <div class="col-md-4"><label class="form-label">Select</label><select class="form-select"><option>Job Order</option><option>Repair and Maintenance</option></select></div>
+                    <div class="col-md-4"><label class="form-label">With error</label><input class="form-control is-invalid" value="JHS2026-03" /><div class="invalid-feedback">DV No. should look like JHS2026-03-053.</div></div>
+                    <div class="col-md-4"><label class="form-label d-block">Switch</label><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="kitSw" checked /><label class="form-check-label" for="kitSw">Active</label></div></div>
+                    <div class="col-12"><div class="dropzone"><i class="bi bi-cloud-arrow-up d-block mb-1"></i>Drop files here<div class="small">PDF, JPG or PNG</div></div></div>
+                </div>
+            </ui-card>
+        </section>
+
+        <!-- ================= FEEDBACK ================= -->
+        <section class="kit-section" id="feedback">
+            <h2>Alerts &amp; dialogs</h2>
+            <p>Alerts for page messages; the shared confirm dialog for risky actions — just add <code>data-ui-confirm</code>.</p>
+            <ui-card>
+                <div class="alert alert-success d-flex gap-2"><i class="bi bi-check-circle-fill"></i>DV JHS2026-03-053 was archived.</div>
+                <div class="alert alert-warning d-flex gap-2"><i class="bi bi-exclamation-triangle-fill"></i>3 documents are missing from this packet.</div>
+                <div class="alert alert-danger d-flex gap-2 mb-3"><i class="bi bi-x-octagon-fill"></i>Net amount is more than the cash advance balance.</div>
+                <form asp-action="Demo" method="post" class="d-inline">
+                    <button class="btn btn-danger" data-ui-confirm="Delete this voucher? This cannot be undone." data-confirm-label="Delete"><i class="bi bi-trash me-1"></i>Delete (asks first)</button>
+                </form>
+                <button class="btn btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#kitModal">Open a modal</button>
+            </ui-card>
+            <div class="modal fade" id="kitModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Modal title</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">Use modals for short forms (add payee, reset password).</div>
+                <div class="modal-footer"><button class="btn btn-light" data-bs-dismiss="modal">Close</button><button class="btn btn-primary">Save</button></div>
+            </div></div></div>
+<pre class="kit-code">@code("""<button class="btn btn-danger" data-ui-confirm="Delete this voucher?" data-confirm-label="Delete">Delete</button>""")</pre>
+        </section>
+
+        <!-- ================= TABS & TIMELINE ================= -->
+        <section class="kit-section" id="tabs">
+            <h2>Tabs &amp; timeline</h2>
+            <div class="row g-3">
+                <div class="col-md-6"><ui-card title="Tabs" icon="bi-segmented-nav">
+                    <ul class="nav nav-tabs mb-3"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#kt1">Voucher</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#kt2">Checklist</button></li></ul>
+                    <div class="tab-content"><div class="tab-pane fade show active" id="kt1">First tab content.</div><div class="tab-pane fade" id="kt2">Second tab content.</div></div>
+                </ui-card></div>
+                <div class="col-md-6"><ui-card title="Activity timeline" icon="bi-clock-history">
+                    <partial name="UI/_Timeline" model="@(new List<TimelineItem> {
+                        new(new DateTime(2026, 8, 13, 15, 41, 0), "avillegas", "uploaded JHS2026-03-053.pdf", "bi-cloud-arrow-up", "blue"),
+                        new(new DateTime(2026, 8, 13, 15, 38, 0), "avillegas", "completed the checklist (7 of 7)", "bi-list-check", "green"),
+                        new(new DateTime(2026, 8, 13, 15, 30, 0), "avillegas", "encoded the voucher", "bi-pencil", "gray") })" />
+                </ui-card></div>
+            </div>
+        </section>
+
+        <!-- ================= EMPTY ================= -->
+        <section class="kit-section" id="empty">
+            <h2>Empty states</h2>
+            <ui-card><partial name="UI/_EmptyState" model="@(new EmptyState("No vouchers yet", "Upload a scanned DV packet to start the archive.", "bi-folder2-open", "Upload Scanned DV", Url.Action("Upload", "Vouchers")))" /></ui-card>
+<pre class="kit-code">@code("""<partial name="UI/_EmptyState" model="@(new EmptyState("No vouchers yet", "Upload a scan to start.", "bi-folder2-open", "Upload", Url.Action("Upload")))" />""")</pre>
+        </section>
+    </div>
+</div>

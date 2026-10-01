@@ -1,0 +1,33 @@
+@model MikroTekArchiving.Models.ViewModels.HotspotLoginViewModel
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="box" style="margin-top:5%;">
+    <h4 style="text-align:left; padding-bottom:5%">Voucher Code:</h4>
+
+    <form class="customform" asp-action="Login" method="post" autocomplete="off">
+        <input asp-for="Code" type="text" placeholder="Voucher Code" required autofocus
+               style="text-transform:uppercase">
+        <button type="submit">Login</button>
+    </form>
+
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+        <div class="hs-msg hs-error">@Model.Error</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.Info))
+    {
+        <div class="hs-msg hs-info">@Model.Info</div>
+    }
+
+    <div class="box hs-note">
+        To obtain a voucher, please visit the Principal's Office. Thank you for your cooperation.
+    </div>
+</div>
+
+@section Scripts {
+    <audio controls autoplay class="hs-audio">
+        <source src="~/hotspot/music.mp3" type="audio/mpeg">
+    </audio>
+}

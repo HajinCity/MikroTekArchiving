@@ -1,0 +1,13 @@
+/* Small additions for the MVC version of the hotspot pages. */
+.hs-msg { margin-top: 0.8em; padding: 0.5em 0.7em; font-size: 12px; text-align: left; }
+.hs-error { color: #b00020; background: #ffe9ec; border-left: 3px solid #e0002a; }
+.hs-info { color: #0b4f6c; background: #e6f4fa; border-left: 3px solid rgba(2,107,150,1); }
+.hs-note { margin-top: 10%; font-size: 12px; }
+.hs-panel { background: #fff; text-align: left; }
+.hs-welcome { text-align: center; margin: 0.4em 0 0.8em; }
+.hs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hs-table td { border: 1px solid #ddd; padding: 0.35em 0.5em; }
+.hs-table td:first-child { text-align: right; white-space: nowrap; color: #555; width: 40%; }
+.hs-actions { margin-top: 1em; text-align: center; }
+.hs-small { font-size: 11px; color: #777; margin-top: 0.6em; }
+.hs-audio { position: fixed; bottom: 10px; left: 10px; z-index: 600; height: 32px; }

@@ -1,0 +1,28 @@
+@*  Layout for official print-outs (DV record, CDR, Alphalist). No menus; a toolbar that hides when printing. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/portal/css/print.css" asp-append-version="true" />
+    @if (ViewData["Landscape"] is true)
+    {
+        <style>@@page { size: A4 landscape; margin: 10mm; }</style>
+    }
+    else
+    {
+        <style>@@page { size: A4 portrait; margin: 12mm; }</style>
+    }
+</head>
+<body>
+    <div class="print-toolbar">
+        <a href="javascript:history.back()">&larr; Back</a>
+        <span>@ViewData["Title"]</span>
+        <button onclick="window.print()">Print</button>
+    </div>
+    <div class="sheet @(ViewData["Landscape"] is true ? "landscape" : "")">
+        @RenderBody()
+    </div>
+</body>
+</html>
