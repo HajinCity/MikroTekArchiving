@@ -8,7 +8,7 @@ using MikroTek.Services.Interface;
 namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
 /// <summary>Reference data and settings: payees, UACS accounts, checklist templates, users, school profile.</summary>
-public class SetupController(IUsers users) : PortalControllerBase
+public class SetupController(IUsers users, IFundBudgets budgets) : PortalControllerBase
 {
     [Authorize(Roles = PortalRoles.Encoders)]
     public IActionResult Payees() => View(SampleData.Payees);
@@ -31,6 +31,21 @@ public class SetupController(IUsers users) : PortalControllerBase
         // Payees can be saved by bookkeepers; everything else in Setup is admin-only.
         if (back != nameof(Payees) && !User.IsAdmin()) return Forbid();
         return TemplateSaved("Changes saved", back);
+    }
+
+    // ---------------------------------------------------------------- Fund budgets (real data)
+
+    [Authorize(Roles = PortalRoles.Admin)]
+    public async Task<IActionResult> Budgets(int? year) =>
+        View(await budgets.GetForYearAsync(year is >= 2000 and <= 2100 ? year.Value : DateTime.Today.Year));
+
+    [HttpPost, ValidateAntiForgeryToken, Authorize(Roles = PortalRoles.Admin)]
+    public async Task<IActionResult> SaveBudgets(SaveFundBudgetsRequest request)
+    {
+        var result = await budgets.SaveAsync(request, User.UserId());
+        if (result.Success) Toast($"Fund budgets for {request.Year} saved.");
+        else ToastError(result.Error!);
+        return RedirectToAction(nameof(Budgets), new { year = request.Year });
     }
 
     // ---------------------------------------------------------------- Staff users (real data)

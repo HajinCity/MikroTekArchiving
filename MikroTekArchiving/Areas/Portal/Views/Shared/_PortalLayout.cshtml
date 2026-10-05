@@ -102,6 +102,7 @@
             }
             @if (User.IsAdmin())
             {
+                <a class="app-nav-link @A(Is("Setup", "Budgets"))" asp-controller="Setup" asp-action="Budgets" title="Fund Budgets"><i class="bi bi-piggy-bank"></i><span>Fund Budgets</span></a>
                 <a class="app-nav-link @A(Is("Setup", "Checklists", "Checklist"))" asp-controller="Setup" asp-action="Checklists" title="Checklist Templates"><i class="bi bi-list-check"></i><span>Checklist Templates</span></a>
                 <a class="app-nav-link @A(Is("Setup", "Users"))" asp-controller="Setup" asp-action="Users" title="Staff Users"><i class="bi bi-person-badge"></i><span>Staff Users</span></a>
                 <a class="app-nav-link @A(Is("Setup", "School"))" asp-controller="Setup" asp-action="School" title="School & Signatories"><i class="bi bi-building"></i><span>School &amp; Signatories</span></a>
@@ -112,7 +113,7 @@
         </nav>
         <div class="app-sidebar-foot">
             <span class="badge text-bg-warning">Template preview</span>
-            <div class="mt-1">Sign-in and Staff Users are live. DVs, cash advances and reports still show sample data.</div>
+            <div class="mt-1">Sign-in, Staff Users and Fund Budgets are live. DVs, cash advances and reports still show sample data.</div>
         </div>
     </aside>
     <div class="app-backdrop" data-ui-sidebar-close></div>

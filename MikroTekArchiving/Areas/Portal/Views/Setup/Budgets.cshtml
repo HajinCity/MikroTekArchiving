@@ -1,0 +1,45 @@
+﻿@using MikroTek.Services.DTO
+@model List<FundBudgetDto>
+@{
+    ViewData["Title"] = "Fund Budgets";
+    ViewData["Crumb"] = "Setup";
+    var year = Model[0].Year;
+    var thisYear = DateTime.Today.Year;
+    var names = new[] { "JhsAnnual", "ShsAnnual", "JhsSpecial", "ShsSpecial" };
+}
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">The budget of each fund for the year. The dashboard cards show how much of it is spent and how much is left.</div>
+    <form asp-action="Budgets" method="get" class="d-flex align-items-center gap-2">
+        <label class="form-label mb-0" for="bYear">Year</label>
+        <select id="bYear" name="year" class="form-select w-auto" onchange="this.form.submit()">
+            @for (var y = thisYear + 1; y >= thisYear - 4; y--) { <option value="@y" selected="@(y == year)">@y</option> }
+            @if (year > thisYear + 1 || year < thisYear - 4) { <option value="@year" selected>@year</option> }
+        </select>
+    </form>
+</div>
+
+<form class="card" asp-action="SaveBudgets" method="post" style="max-width:760px">
+    <div class="card-header">Budgets for @year</div>
+    <div class="card-body">
+        <input type="hidden" name="Year" value="@year" />
+        <div class="row g-3">
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                var b = Model[i];
+                <div class="col-sm-6">
+                    <label class="form-label" for="b@(i)"><span class="dept dept-@b.Department me-1">@b.Department</span> @b.FundName</label>
+                    <div class="input-group">
+                        <span class="input-group-text">₱</span>
+                        <input id="b@(i)" name="@names[i]" type="number" min="0" max="9999999999.99" step="0.01" class="form-control text-end"
+                               value="@b.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" required />
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="form-text mt-3">Use 0 for a fund that has no budget this year. <b>Annual Budget</b> is the department's regular MOOE for the year; <b>Special Funds</b> is everything else.</div>
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <a class="btn btn-light" asp-controller="Dashboard" asp-action="Index">Cancel</a>
+        <button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save budgets</button>
+    </div>
+</form>

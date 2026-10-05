@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // TEMPLATE ONLY — sample data so the front-end design can be clicked through
 // before the database exists. Taken from the sample JHS/SHS documents.
 // When we connect the real services, the controllers will use DTOs from
@@ -7,8 +7,11 @@
 namespace MikroTek.Archiving.Areas.Portal.TemplateData;
 
 public record CashAdvanceRow(int Id, string Dept, int BatchNo, string PayrollNo, string AdaNo,
-    DateTime Date, decimal Amount, string Period, string Officer, string Status)
+    DateTime Date, decimal Amount, string Period, string Officer, string Status,
+    MikroTek.Domain.FundType Fund = MikroTek.Domain.FundType.AnnualBudget)
 {
+    /// <summary>"Annual Budget" or "Special Funds".</summary>
+    public string FundName => Fund == MikroTek.Domain.FundType.AnnualBudget ? "Annual Budget" : "Special Funds";
     public List<DvRow> Vouchers => SampleData.Vouchers.Where(v => v.CashAdvanceId == Id).ToList();
     public decimal Spent => Vouchers.Sum(v => v.Net);
     public decimal Balance => Amount - Spent;

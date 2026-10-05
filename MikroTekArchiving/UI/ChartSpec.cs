@@ -4,8 +4,12 @@ namespace MikroTek.Archiving.UI;
 
 public enum ChartType { Bar, HBar, StackedBar, Line, Area, Donut }
 
-/// <summary>One data series. Colors come from the validated palette in order (series 1 = blue, 2 = orange, …).</summary>
-public record ChartSeries(string Name, IEnumerable<decimal> Values);
+/// <summary>
+/// One data series. Colors come from the validated palette in order (series 1 = blue, 2 = orange, …).
+/// Set Color (1–8) when a series must keep its own colour even if other series are filtered out,
+/// e.g. Senior High stays orange when Junior High is hidden.
+/// </summary>
+public record ChartSeries(string Name, IEnumerable<decimal> Values, int? Color = null);
 
 /// <summary>
 /// Reusable chart (Chart.js underneath, styled by wwwroot/ui/ui-charts.js).
@@ -31,7 +35,7 @@ public record ChartSpec(
     {
         type = Type.ToString().ToLowerInvariant(),
         labels = Labels,
-        series = Series.Select(s => new { name = s.Name, values = s.Values }),
+        series = Series.Select(s => new { name = s.Name, values = s.Values, color = s.Color }),
         money = Money,
         highlight = Highlight
     });

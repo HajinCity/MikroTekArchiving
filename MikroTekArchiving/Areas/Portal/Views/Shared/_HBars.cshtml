@@ -1,8 +1,18 @@
-@model BarChart
+﻿@model BarChart
 @{
     var items = Model.Display();
     var max = items.Count == 0 ? 1 : items.Max(i => i.Amount);
     var total = items.Sum(i => i.Amount);
+
+    // Whole-number percentages that always add up to exactly 100
+    // (round down, then give the leftover points to the rows with the biggest remainders).
+    var exact = items.Select(i => total == 0 ? 0m : i.Amount / total * 100).ToList();
+    var whole = exact.Select(p => (int)Math.Floor(p)).ToList();
+    foreach (var idx in Enumerable.Range(0, items.Count).OrderByDescending(k => exact[k] - whole[k]).Take(total == 0 ? 0 : 100 - whole.Sum()))
+    {
+        whole[idx]++;
+    }
+    var n = 0;
 }
 <div class="viz">
     <div class="viz-title">@Model.Title</div>
@@ -16,13 +26,17 @@
         <div class="hbars" role="list">
             @foreach (var i in items)
             {
-                var pct = total == 0 ? 0 : i.Amount / total * 100;
+                var pct = exact[n];
+                var shown = whole[n++];
                 <div class="lbl" role="listitem">@i.Label @if (i.Sub is not null) { <small>@i.Sub</small> }</div>
                 <div class="track"><div class="bar" tabindex="0" style="width:@((i.Amount / max * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"
                      data-tip="<b>@i.Label</b><br />@Fmt.Peso(i.Amount) · @pct.ToString("0.#")% of total"
                      aria-label="@i.Label: @Fmt.Peso(i.Amount)"></div></div>
-                <div class="val">@Fmt.Num(i.Amount)<small>@pct.ToString("0")%</small></div>
+                <div class="val">@Fmt.Num(i.Amount)<small>@shown%</small></div>
             }
+            <div class="lbl total" role="listitem">Total</div>
+            <div class="track total"></div>
+            <div class="val total" aria-label="Total: @Fmt.Peso(total), 100 percent">@Fmt.Num(total)<small>100%</small></div>
         </div>
     }
 </div>

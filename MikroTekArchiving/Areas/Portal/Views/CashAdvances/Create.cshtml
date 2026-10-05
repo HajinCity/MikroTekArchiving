@@ -1,4 +1,4 @@
-@{
+﻿@{
     ViewData["Title"] = "Record Cash Advance";
     ViewData["Crumb"] = "Disbursements / Cash Advances";
 }
@@ -8,16 +8,24 @@
             <div class="card-header">School MOOE Slip details <span class="sub">— copy from the slip issued by the Division Cash Unit</span></div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Department</label>
-                        <select class="form-select" name="Dept"><option>JHS</option><option>SHS</option></select>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caDept">Department</label>
+                        <select class="form-select" id="caDept" name="Dept"><option>JHS</option><option>SHS</option></select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label" for="caFund">Fund</label>
+                        <select class="form-select" id="caFund" name="Fund">
+                            <option value="AnnualBudget">Annual Budget</option>
+                            <option value="SpecialFunds">Special Funds</option>
+                        </select>
+                        <div class="form-text" id="caFundHint">Charged to the JHS Annual Budget</div>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label">Batch No.</label>
                         <input class="form-control" name="BatchNo" type="number" min="1" value="4" />
                         <div class="form-text">Used in the DV numbers, e.g. JHS2026-<b>04</b>-054</div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Fund Cluster</label>
                         <input class="form-control" name="FundCluster" value="Regular" />
                     </div>
@@ -62,3 +70,13 @@
         </form>
     </div>
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    const dept = document.getElementById("caDept"), fund = document.getElementById("caFund"), hint = document.getElementById("caFundHint");
+    const show = () => { hint.textContent = "Charged to the " + dept.value + " " + fund.options[fund.selectedIndex].text; };
+    dept.addEventListener("change", show); fund.addEventListener("change", show); show();
+})();
+</script>
+}

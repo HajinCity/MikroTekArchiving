@@ -28,6 +28,7 @@
                     <dt class="col-5 text-body-secondary fw-normal">Date</dt><dd class="col-7">@Fmt.LongDate(Model.Date)</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Period covered</dt><dd class="col-7">@Model.Period</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Batch</dt><dd class="col-7">@Model.BatchNo.ToString("00") (DV series @(Model.Dept)2026-@Model.BatchNo.ToString("00")-###)</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Fund</dt><dd class="col-7">@Model.Dept @Model.FundName</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Fund cluster</dt><dd class="col-7">Regular</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Accountable officer</dt><dd class="col-7">@Model.Officer<br /><small class="text-body-secondary">School Principal II</small></dd>
                     <dt class="col-5 text-body-secondary fw-normal">Verified by</dt><dd class="col-7">Ercel C. Monternel<br /><small class="text-body-secondary">AO IV – Cash Unit</small></dd>

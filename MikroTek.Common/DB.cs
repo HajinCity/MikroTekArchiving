@@ -12,6 +12,7 @@ namespace MikroTek.Common
         public DbSet<Plans> Plans => Set<Plans>();
         public DbSet<Vouchers> Vouchers => Set<Vouchers>();
         public DbSet<HotspotSessions> HotspotSessions => Set<HotspotSessions>();
+        public DbSet<FundBudgets> FundBudgets => Set<FundBudgets>();
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -25,6 +26,14 @@ namespace MikroTek.Common
                 u.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
                 u.Property(x => x.LastLoginTime).HasColumnType("datetime2(0)");
                 u.Property(x => x.LastLogoutTime).HasColumnType("datetime2(0)");
+            });
+
+            b.Entity<FundBudgets>(f =>
+            {
+                f.Property(x => x.Department).HasConversion<string>().HasMaxLength(10);
+                f.Property(x => x.FundType).HasConversion<string>().HasMaxLength(20);
+                f.Property(x => x.Amount).HasPrecision(18, 2);
+                f.HasIndex(x => new { x.Year, x.Department, x.FundType }).IsUnique();
             });
 
             b.Entity<Plans>(p =>

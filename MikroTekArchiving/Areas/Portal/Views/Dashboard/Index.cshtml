@@ -1,25 +1,35 @@
-﻿@{
+﻿@using MikroTek.Archiving.Areas.Portal.Models
+@model DashboardData
+@{
     ViewData["Title"] = "Dashboard";
-    var dvs = SampleData.Vouchers;
-    var incomplete = dvs.Where(v => !v.IsComplete).ToList();
+    var f = Model.Filter;
+    var dvs = Model.Vouchers;
+    var incomplete = Model.Incomplete;
+    var today = DateTime.Today;
 
-    // Monthly net by department
-    var months = dvs.Select(v => new DateTime(v.Date.Year, v.Date.Month, 1)).Distinct().OrderBy(d => d).ToList();
-    var monthly = new ChartSpec(ChartType.Bar, months.Select(m => m.ToString("MMM yyyy")),
-        [new("Junior High", months.Select(m => dvs.Where(v => v.Dept == "JHS" && v.Date.Month == m.Month).Sum(v => v.Net))),
-         new("Senior High", months.Select(m => dvs.Where(v => v.Dept == "SHS" && v.Date.Month == m.Month).Sum(v => v.Net)))],
-        "Net disbursed per month", "By department, FY 2026");
+    // Quick date choices
+    var thisMonth = new DateTime(today.Year, today.Month, 1);
+    var presets = new (string Text, DateTime From, DateTime To)[]
+    {
+        ("This month", thisMonth, thisMonth.AddMonths(1).AddDays(-1)),
+        ("Last month", thisMonth.AddMonths(-1), thisMonth.AddDays(-1)),
+        ("This year", new DateTime(today.Year, 1, 1), new DateTime(today.Year, 12, 31)),
+        ("Last year", new DateTime(today.Year - 1, 1, 1), new DateTime(today.Year - 1, 12, 31)),
+    };
 
-    // Share by transaction type, in the fixed category order so each type keeps its colour on every page
-    var byType = SpendTypes.Order.Select(t => (Name: t, Amt: dvs.Where(v => SpendTypes.Of(v.Type) == t).Sum(v => v.Gross))).ToList();
-    var donut = new ChartSpec(ChartType.Donut, byType.Select(x => x.Name), [new("Gross", byType.Select(x => x.Amt))],
-        "Spending by transaction type", "Gross amounts, all DVs");
+    // Net per month. Each department keeps its own colour (JHS blue, SHS orange) even when the other is filtered out.
+    var series = new List<ChartSeries>();
+    if (f.IncludesDept("JHS")) { series.Add(new("Junior High", Model.Months.Select(m => m.Jhs), Color: 1)); }
+    if (f.IncludesDept("SHS")) { series.Add(new("Senior High", Model.Months.Select(m => m.Shs), Color: 2)); }
+    var monthly = new ChartSpec(ChartType.Bar, Model.Months.Select(m => m.Month.ToString("MMM yyyy")), series,
+        "Net disbursed per month", $"{f.DeptText} · {f.RangeText}");
 
-    var accounts = dvs.SelectMany(v => v.Lines).GroupBy(l => l.Title).Select(g => (Name: g.Key, Amt: g.Sum(x => x.Amount)))
-        .OrderByDescending(x => x.Amt).ToList();
-    var top = accounts.Take(5).ToList();
-    if (accounts.Count > 5) top.Add(($"Other ({accounts.Count - 5})", accounts.Skip(5).Sum(x => x.Amt)));
-    var accountChart = new ChartSpec(ChartType.HBar, top.Select(x => x.Name), [new("Gross", top.Select(x => x.Amt))],
+    var donut = new ChartSpec(ChartType.Donut, Model.ByType.Select(x => x.Name), [new("Gross", Model.ByType.Select(x => x.Amount))],
+        "Spending by transaction type", $"Gross amounts · {dvs.Count} DVs");
+
+    var top = Model.ByAccount.Take(5).ToList();
+    if (Model.ByAccount.Count > 5) { top.Add(new AmountRow($"Other ({Model.ByAccount.Count - 5})", null, Model.ByAccount.Skip(5).Sum(x => x.Amount))); }
+    var accountChart = new ChartSpec(ChartType.HBar, top.Select(x => x.Name), [new("Gross", top.Select(x => x.Amount))],
         "Top expense accounts", "UACS accounts by gross amount", Height: 280);
 
     var recent = DataGrid.For(dvs.OrderByDescending(v => v.Date).ThenByDescending(v => v.DvNo))
@@ -40,29 +50,87 @@
     }
 </div>
 
+<!-- Filter: everything below follows these dates and this department; Export writes the same data to Excel -->
+<form class="card dash-filter mb-3" asp-action="Index" method="get">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-auto">
+                <label class="form-label" for="fFrom">From</label>
+                <input id="fFrom" name="from" type="date" class="form-control" value="@f.From.ToString("yyyy-MM-dd")" required />
+            </div>
+            <div class="col-6 col-md-auto">
+                <label class="form-label" for="fTo">To</label>
+                <input id="fTo" name="to" type="date" class="form-control" value="@f.To.ToString("yyyy-MM-dd")" required />
+            </div>
+            <div class="col-12 col-md-auto">
+                <label class="form-label" for="fDept">Department</label>
+                <select id="fDept" name="dept" class="form-select">
+                    <option value="" selected="@(f.Dept is null)">All departments</option>
+                    <option value="JHS" selected="@(f.Dept == "JHS")">Junior High (JHS)</option>
+                    <option value="SHS" selected="@(f.Dept == "SHS")">Senior High (SHS)</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Apply</button>
+                <a class="btn btn-light" asp-action="Index">Reset</a>
+            </div>
+            <div class="col-12 col-lg-auto ms-lg-auto">
+                <a class="btn btn-success" asp-action="Export" asp-all-route-data="f.Route()" title="Download what is shown here as an Excel file">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Export to Excel</a>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2 small">
+            <span class="text-body-secondary">Quick dates:</span>
+            @foreach (var p in presets)
+            {
+                var on = p.From == f.From && p.To == f.To;
+                <a class="ui-pill @(on ? "tone-blue" : "tone-gray") text-decoration-none" asp-action="Index" asp-all-route-data="f.Route(p.From, p.To)" aria-current="@(on ? "true" : null)">@p.Text</a>
+            }
+            <span class="text-body-secondary ms-auto">Showing <b>@dvs.Count</b> DV(s) dated @f.RangeText · @f.DeptText</span>
+        </div>
+    </div>
+</form>
+
+<!-- Fund cards: budget for @f.BudgetYear, follows the department filter -->
 <div class="row g-3 mb-3">
-    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("DVs archived (FY 2026)", dvs.Count.ToString(), "bi-folder2-open", "blue", Hint: $"{dvs.Count(v => v.Date.Month == 9)} this month", Href: Url.Action("Index", "Vouchers")))" /></div>
-    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Total disbursed (net)", Fmt.Peso(dvs.Sum(v => v.Net)), "bi-cash-coin", "aqua", Hint: "JHS " + Fmt.Peso(dvs.Where(v => v.Dept == "JHS").Sum(v => v.Net))))" /></div>
-    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Taxes withheld", Fmt.Peso(dvs.Sum(v => v.Taxes)), "bi-receipt", "orange", Hint: "To be remitted to BIR", Href: Url.Action("Index", "Reports")))" /></div>
-    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Incomplete DV packets", incomplete.Count.ToString(), "bi-exclamation-triangle", "red", Hint: "Missing supporting documents", Href: Url.Action("Index", "Vouchers", new { status = "incomplete" })))" /></div>
+    @foreach (var fund in Model.Funds)
+    {
+        <div class="@(Model.Funds.Count > 2 ? "col-sm-6 col-xl-3" : "col-md-6")"><partial name="_FundCard" model="fund" /></div>
+    }
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-xl-8"><ui-card class="h-100"><partial name="UI/_Chart" model="monthly" /></ui-card></div>
-    <div class="col-xl-4"><ui-card class="h-100"><partial name="UI/_Chart" model="donut" /></ui-card></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("DVs archived", dvs.Count.ToString(), "bi-folder2-open", "blue", Hint: f.RangeText, Href: Url.Action("Index", "Vouchers", new { dept = f.Dept })))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Total disbursed (net)", Fmt.Peso(Model.Net), "bi-cash-coin", "aqua", Hint: "Gross " + Fmt.Peso(Model.Gross)))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Taxes withheld", Fmt.Peso(Model.Taxes), "bi-receipt", "orange", Hint: "To be remitted to BIR", Href: Url.Action("Index", "Reports")))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Incomplete DV packets", incomplete.Count.ToString(), "bi-exclamation-triangle", "red", Hint: "Missing supporting documents", Href: Url.Action("Index", "Vouchers", new { status = "incomplete", dept = f.Dept })))" /></div>
 </div>
+
+@if (dvs.Count == 0)
+{
+    <div class="card mb-3"><div class="card-body">
+        <partial name="UI/_EmptyState" model="@(new EmptyState("No DVs in these dates", $"Nothing is dated {f.RangeText} for {f.DeptText}. Try other dates or press Reset.", "bi-calendar-x"))" />
+    </div></div>
+}
+else
+{
+    <div class="row g-3 mb-3">
+        <div class="col-xl-8"><ui-card class="h-100"><partial name="UI/_Chart" model="monthly" /></ui-card></div>
+        <div class="col-xl-4"><ui-card class="h-100"><partial name="UI/_Chart" model="donut" /></ui-card></div>
+    </div>
+}
 
 <div class="row g-3 mb-3">
     <div class="col-xl-7">
-        <ui-card title="Cash advances" subtitle="MOOE utilization" icon="bi-cash-stack" class="h-100">
+        <ui-card title="Cash advances" subtitle="Utilization to date" icon="bi-cash-stack" class="h-100">
             <ui-card-tools><a asp-controller="CashAdvances" asp-action="Index">View all</a></ui-card-tools>
-            @foreach (var ca in SampleData.CashAdvances)
+            @foreach (var ca in Model.CashAdvances)
             {
                 <div class="mb-4">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <span class="dept dept-@ca.Dept">@ca.Dept</span>
                         <a class="fw-semibold text-decoration-none" asp-controller="CashAdvances" asp-action="Details" asp-route-id="@ca.Id">@ca.PayrollNo</a>
-                        <span class="text-body-secondary small d-none d-sm-inline">· Batch @ca.BatchNo.ToString("00") · @ca.Period</span>
+                        <span class="text-body-secondary small d-none d-sm-inline">· @ca.FundName · Batch @ca.BatchNo.ToString("00") · @ca.Period</span>
                         <span class="ui-pill @(ca.Status == "Open" ? "tone-blue" : "tone-gray") ms-auto">@ca.Status</span>
                     </div>
                     <partial name="UI/_Meter" model="@(new Meter(null, ca.Amount, [new("Spent", ca.Spent, "s1"), new("Balance", ca.Balance, "track")]))" />
@@ -86,17 +154,24 @@
                         <div class="small text-danger text-truncate">@string.Join(", ", v.Checklist.Where(c => c.Mark == "").Select(c => c.Label).Take(2))@(v.DocsMissing > 2 ? "…" : "")</div>
                     </a>
                 }
+                @if (incomplete.Count == 0)
+                {
+                    <div class="list-group-item py-4 text-center text-body-secondary small"><i class="bi bi-check2-circle text-success"></i> Every DV packet in these dates is complete.</div>
+                }
             </div>
         </ui-card>
     </div>
 </div>
 
-<div class="row g-3">
-    <div class="col-xl-5"><ui-card class="h-100"><partial name="UI/_Chart" model="accountChart" /></ui-card></div>
-    <div class="col-xl-7">
-        <ui-card title="Recently encoded DVs" icon="bi-folder2-open" flush="true" class="h-100">
-            <ui-card-tools><a asp-controller="Vouchers" asp-action="Index">Open archive</a></ui-card-tools>
-            <partial name="UI/_DataGrid" model="recent" />
-        </ui-card>
+@if (dvs.Count > 0)
+{
+    <div class="row g-3">
+        <div class="col-xl-5"><ui-card class="h-100"><partial name="UI/_Chart" model="accountChart" /></ui-card></div>
+        <div class="col-xl-7">
+            <ui-card title="DVs in these dates" icon="bi-folder2-open" flush="true" class="h-100">
+                <ui-card-tools><a asp-controller="Vouchers" asp-action="Index">Open archive</a></ui-card-tools>
+                <partial name="UI/_DataGrid" model="recent" />
+            </ui-card>
+        </div>
     </div>
-</div>
+}

@@ -101,13 +101,23 @@
 .hbars .bar { height: 14px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 3px; cursor: default; }
 .hbars .bar:hover, .hbars .bar:focus { filter: brightness(.9); outline: none; }
 .hbars .val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hbars .val small { color: var(--text-secondary); margin-left: .35rem; }
+.hbars .val small { color: var(--text-secondary); margin-left: .35rem; display: inline-block; min-width: 2.4em; text-align: right; }
+.hbars .total { border-top: 2px solid var(--app-ink, #1c2434); padding-top: .5rem; margin-top: .15rem; font-weight: 700; align-self: stretch; height: auto; }
+.hbars .val.total small { color: inherit; }
+
+/* Dashboard: filter bar and fund cards */
+.dash-filter .form-label { font-size: .78rem; margin-bottom: .2rem; }
+.fund-card .fund-figure { font-size: clamp(1.15rem, 1rem + .6vw, 1.5rem); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fund-card .ui-meter-bar { margin-top: .9rem; }
+.fund-card .ui-legend { flex-direction: column; gap: .2rem; }
+.fund-card .ui-legend span { display: flex; align-items: baseline; }
+.fund-card .ui-legend b { margin-left: auto; padding-left: .75rem; }
 .stackbar { display: flex; gap: 2px; height: 18px; }
 .stackbar .seg { height: 100%; min-width: 3px; cursor: default; }
 .stackbar .seg:last-child { border-radius: 0 4px 4px 0; }
 .stackbar .seg:hover, .stackbar .seg:focus { filter: brightness(.9); outline: none; }
 .seg-1 { background: var(--series-1); } .seg-2 { background: var(--series-2); }
-.seg-de { background: var(--deemph); } .seg-track { background: var(--track); }
+.seg-de { background: var(--deemph); }
 .legend { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; font-size: .78rem; margin-top: .55rem; }
 .legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .4rem; vertical-align: -1px; }
 .legend b { font-variant-numeric: tabular-nums; }

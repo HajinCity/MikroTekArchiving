@@ -4,6 +4,7 @@
     ViewData["Crumb"] = "Disbursements";
     var grid = DataGrid.For(Model)
         .Text("Dept", c => c.Dept)
+        .Text("Fund", c => c.FundName, hideOnMobile: true)
         .Text("Batch", c => c.BatchNo.ToString("00"))
         .Text("Payroll No.", c => c.PayrollNo, href: c => Url.Action("Details", new { id = c.Id }), nowrap: true)
         .Text("ADA No.", c => c.AdaNo, hideOnMobile: true, css: "mono")

@@ -235,7 +235,9 @@ body.app { background: var(--app-bg); color: var(--app-ink); font-size: .92rem; 
 .ui-meter-seg:last-child { border-radius: 0 4px 4px 0; }
 .ui-meter-seg:hover, .ui-meter-seg:focus { filter: brightness(.9); outline: none; }
 .seg-s1 { background: var(--ui-s1); } .seg-s2 { background: var(--ui-s2); } .seg-s3 { background: var(--ui-s3); }
-.seg-muted { background: var(--ui-muted-mark); } .seg-track { background: var(--ui-track); }
+.seg-muted { background: var(--ui-muted-mark); }
+/* The empty remainder of a meter: a light tint of the same blue, so "what is left" can be seen on a white card. */
+.seg-track { background: color-mix(in srgb, var(--ui-s1) 18%, var(--app-surface)); }
 .ui-legend { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; font-size: .78rem; margin-top: .6rem; }
 .ui-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .4rem; vertical-align: -1px; }
 .ui-legend b { font-variant-numeric: tabular-nums; }

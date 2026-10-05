@@ -1,0 +1,43 @@
+﻿@*  One fund card: budget for the year, what is spent, what is left. Model: FundCard.
+    A single amount against a limit, so it is a meter (not a pie). *@
+@using MikroTek.Archiving.Areas.Portal.Models
+@model FundCard
+@{
+    var segments = new List<MeterSegment> { new("Spent in these dates", Model.SpentInRange, "s1") };
+    if (Model.SpentEarlier > 0) { segments.Add(new($"Spent earlier in {Model.Year}", Model.SpentEarlier, "muted")); }
+    if (Model.HasBudget && !Model.OverBudget) { segments.Add(new("Left", Model.Remaining, "track")); }
+    var total = Math.Max(Model.Budget, Model.SpentInYear);
+}
+<div class="card fund-card h-100">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="dept dept-@Model.Dept">@Model.Dept</span>
+            <span class="fw-semibold">@Model.FundName</span>
+            <span class="small text-body-secondary ms-auto">@Model.Year</span>
+        </div>
+
+        @if (!Model.HasBudget)
+        {
+            <div class="fund-figure">@Fmt.Peso(Model.SpentInYear)</div>
+            <div class="small text-body-secondary">spent this year · <span class="text-warning-emphasis"><i class="bi bi-exclamation-circle"></i> budget not set</span></div>
+            @if (User.IsAdmin())
+            {
+                <a class="btn btn-sm btn-outline-primary mt-3 position-relative" asp-controller="Setup" asp-action="Budgets" asp-route-year="@Model.Year"><i class="bi bi-pencil me-1"></i>Set budget</a>
+            }
+        }
+        else
+        {
+            if (Model.OverBudget)
+            {
+                <div class="fund-figure text-danger">@Fmt.Peso(-Model.Remaining)</div>
+                <div class="small"><span class="text-danger fw-semibold"><i class="bi bi-exclamation-triangle-fill"></i> Over budget</span> <span class="text-body-secondary">· budget @Fmt.Peso(Model.Budget)</span></div>
+            }
+            else
+            {
+                <div class="fund-figure">@Fmt.Peso(Model.Remaining)</div>
+                <div class="small text-body-secondary">left of @Fmt.Peso(Model.Budget) · @Model.PercentUsed.ToString("0.#")% used</div>
+            }
+            <partial name="UI/_Meter" model="@(new Meter(null, total, segments))" />
+        }
+    </div>
+</div>

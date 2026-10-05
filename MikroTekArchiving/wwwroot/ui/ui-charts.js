@@ -23,7 +23,7 @@
 
         const datasets = spec.series.map((s, i) => {
             const c = donut ? spec.labels.map((_, j) => colors[j % 8])
-                : emphasis ? spec.labels.map((_, j) => j === hi ? colors[0] : css("--ui-muted-mark")) : colors[i % 8];
+                : emphasis ? spec.labels.map((_, j) => j === hi ? colors[0] : css("--ui-muted-mark")) : colors[((s.color || i + 1) - 1) % 8];
             const base = { label: s.name, data: s.values };
             if (donut) return { ...base, backgroundColor: c, borderColor: surface, borderWidth: 2, hoverOffset: 4,
                 offset: hi === null ? 0 : spec.labels.map((_, j) => j === hi ? 10 : 0) };

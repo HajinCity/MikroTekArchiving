@@ -22,6 +22,51 @@ namespace MikroTek.Common.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("MikroTek.Domain.FundBudgets", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Department")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("FundType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year", "Department", "FundType")
+                        .IsUnique();
+
+                    b.ToTable("FundBudgets");
+                });
+
             modelBuilder.Entity("MikroTek.Domain.HotspotSessions", b =>
                 {
                     b.Property<long>("Id")
