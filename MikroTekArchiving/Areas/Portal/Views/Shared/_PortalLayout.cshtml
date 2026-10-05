@@ -155,12 +155,6 @@
                     <li><a class="@A(Is("Settings", "Roles"))" asp-controller="Settings" asp-action="Roles">Roles &amp; Access</a></li>
                 }
             </ul>
-
-            @if (User.IsAdmin())
-            {
-                <div class="app-nav-label">Developer</div>
-                <a class="app-nav-link @A(Is("Kit"))" asp-controller="Kit" asp-action="Index" title="UI Kit"><i class="bi bi-grid-1x2"></i><span>UI Kit</span><span class="badge rounded-pill text-bg-primary">new</span></a>
-            }
         </nav>
         <div class="app-sidebar-foot">
             <span class="badge text-bg-warning">Template preview</span>
