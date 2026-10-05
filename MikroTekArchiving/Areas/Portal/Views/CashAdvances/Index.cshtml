@@ -1,4 +1,4 @@
-@model List<CashAdvanceRow>
+﻿@model List<CashAdvanceRow>
 @{
     ViewData["Title"] = "Cash Advances";
     ViewData["Crumb"] = "Disbursements";
@@ -19,7 +19,10 @@
 }
 <div class="page-actions">
     <div class="me-auto text-body-secondary">MOOE cash advances released to the school (School MOOE Slip). Every DV is charged against one.</div>
-    <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Record Cash Advance</a>
+    @if (User.CanEncode())
+    {
+        <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Record Cash Advance</a>
+    }
 </div>
 <ui-card title="Cash advances" icon="bi-cash-stack" flush="true">
     <partial name="UI/_DataGrid" model="grid" />

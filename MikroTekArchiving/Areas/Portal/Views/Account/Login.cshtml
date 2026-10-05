@@ -1,3 +1,4 @@
+﻿@model MikroTek.Archiving.Areas.Portal.Models.LoginInput
 @{
     Layout = null;
 }
@@ -33,33 +34,37 @@
                 <h3 class="fw-bold mb-1">Sign in</h3>
                 <p class="text-body-secondary mb-4">Use your staff account to continue.</p>
 
+                @if (!string.IsNullOrEmpty(Model.Error))
+                {
+                    <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
+                        <i class="bi bi-exclamation-circle-fill mt-1"></i><div>@Model.Error</div>
+                    </div>
+                }
                 <form asp-action="Login" method="post">
+                    <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
                     <div class="mb-3">
                         <label class="form-label" for="username">Username</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-person"></i></span>
-                            <input id="username" name="username" class="form-control" autocomplete="username" required autofocus />
+                            <input id="username" name="Username" value="@Model.Username" class="form-control" autocomplete="username" required autofocus="@(string.IsNullOrEmpty(Model.Username))" />
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="password">Password</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                            <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required />
+                            <input id="password" name="Password" type="password" class="form-control" autocomplete="current-password" required autofocus="@(!string.IsNullOrEmpty(Model.Username))" />
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="remember" name="remember" />
+                            <input class="form-check-input" type="checkbox" id="remember" name="Remember" value="true" checked="@Model.Remember" />
                             <label class="form-check-label small" for="remember">Keep me signed in</label>
                         </div>
                         <span class="small text-body-secondary">Forgot password? Ask the admin.</span>
                     </div>
                     <button class="btn btn-primary w-100 py-2 fw-semibold">Sign in</button>
                 </form>
-                <div class="alert alert-warning small mt-4 mb-0">
-                    <i class="bi bi-cone-striped"></i> Template preview — any username/password opens the portal.
-                </div>
             </div>
         </section>
     </div>

@@ -1,4 +1,4 @@
-@{
+﻿@{
     ViewData["Title"] = "Dashboard";
     var dvs = SampleData.Vouchers;
     var incomplete = dvs.Where(v => !v.IsComplete).ToList();
@@ -10,9 +10,8 @@
          new("Senior High", months.Select(m => dvs.Where(v => v.Dept == "SHS" && v.Date.Month == m.Month).Sum(v => v.Net)))],
         "Net disbursed per month", "By department, FY 2026");
 
-    // Share by transaction type (top 4 + other)
-    var byType = dvs.GroupBy(v => v.Type.Split(' ')[0] switch { "Office," => "Supplies", "Repair" => "Repairs", "Job" => "Labor (Job Order)", "Utilities" => "Utilities", _ => "Travel" })
-        .Select(g => (Name: g.Key, Amt: g.Sum(v => v.Gross))).OrderByDescending(x => x.Amt).ToList();
+    // Share by transaction type, in the fixed category order so each type keeps its colour on every page
+    var byType = SpendTypes.Order.Select(t => (Name: t, Amt: dvs.Where(v => SpendTypes.Of(v.Type) == t).Sum(v => v.Gross))).ToList();
     var donut = new ChartSpec(ChartType.Donut, byType.Select(x => x.Name), [new("Gross", byType.Select(x => x.Amt))],
         "Spending by transaction type", "Gross amounts, all DVs");
 
@@ -33,9 +32,12 @@
 }
 
 <div class="page-actions">
-    <div class="me-auto text-body-secondary">Good morning, <b>Anely</b>. Here's the status of the disbursement archive.</div>
-    <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Scanned DV</a>
-    <a class="btn btn-outline-primary" asp-controller="CashAdvances" asp-action="Create"><i class="bi bi-cash-stack me-1"></i>Record Cash Advance</a>
+    <div class="me-auto text-body-secondary">@(DateTime.Now.Hour < 12 ? "Good morning" : DateTime.Now.Hour < 18 ? "Good afternoon" : "Good evening"), <b>@User.FirstName()</b>. Here's the status of the disbursement archive.</div>
+    @if (User.CanEncode())
+    {
+        <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Scanned DV</a>
+        <a class="btn btn-outline-primary" asp-controller="CashAdvances" asp-action="Create"><i class="bi bi-cash-stack me-1"></i>Record Cash Advance</a>
+    }
 </div>
 
 <div class="row g-3 mb-3">

@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using MikroTek.Services.Interface;
 using MikroTekArchiving.Models.ViewModels;
-using MikroTekArchiving.Services;
-using MikroTekArchiving.Services.Routers;
+using MikroTekArchiving.Utility;
 
 namespace MikroTekArchiving.Controllers;
 
@@ -9,13 +10,21 @@ namespace MikroTekArchiving.Controllers;
 /// The user side of the hotspot. These actions replace the MikroTik pages:
 ///   login.html  -> Login      alogin.html -> LoggedIn
 ///   status.html -> Status     logout.html -> Logout
+/// The rules themselves are in MikroTek.Services (VoucherServices); this controller only shows pages.
 /// </summary>
-public class HotspotController(VoucherService vouchers, IRouterService router) : Controller
+public class HotspotController(IVouchers vouchers, IConfiguration config) : Controller
 {
+    /// <summary>When the hotspot demo is switched off (school server), every page here answers "not found".</summary>
+    public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        if (!config.GetValue("HotspotDemo:Enabled", true))
+            context.Result = NotFound();
+    }
+
     [HttpGet]
     public async Task<IActionResult> Login(string? reason)
     {
-        var client = router.GetClient(HttpContext);
+        var client = HotspotDevice.GetClient(HttpContext);
         if (await vouchers.GetStatusAsync(client) is not null)
             return RedirectToAction(nameof(Status)); // already online
 
@@ -29,7 +38,7 @@ public class HotspotController(VoucherService vouchers, IRouterService router) :
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(HotspotLoginViewModel model)
     {
-        var client = router.GetClient(HttpContext);
+        var client = HotspotDevice.GetClient(HttpContext);
         var result = await vouchers.LoginAsync(model.Code, client);
 
         if (!result.Success)
@@ -47,7 +56,7 @@ public class HotspotController(VoucherService vouchers, IRouterService router) :
     [HttpGet]
     public async Task<IActionResult> Status()
     {
-        var status = await vouchers.GetStatusAsync(router.GetClient(HttpContext));
+        var status = await vouchers.GetStatusAsync(HotspotDevice.GetClient(HttpContext));
         if (status is null) return RedirectToAction(nameof(Login));
         return View(status);
     }
@@ -55,7 +64,7 @@ public class HotspotController(VoucherService vouchers, IRouterService router) :
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
-        var summary = await vouchers.LogoutAsync(router.GetClient(HttpContext));
+        var summary = await vouchers.LogoutAsync(HotspotDevice.GetClient(HttpContext));
         if (summary is null) return RedirectToAction(nameof(Login));
         return View(summary);
     }

@@ -6,10 +6,13 @@ using MikroTekArchiving.Models;
 
 namespace MikroTekArchiving.Controllers;
 
-public class HomeController : Controller
+public class HomeController(IConfiguration config) : Controller
 {
-    // The site's home page is the hotspot login page.
-    public IActionResult Index() => RedirectToAction("Login", "Hotspot");
+    // Home page: the hotspot demo login when the demo is on, otherwise straight to the portal.
+    public IActionResult Index() =>
+        config.GetValue("HotspotDemo:Enabled", true)
+            ? RedirectToAction("Login", "Hotspot")
+            : Redirect("/Portal");
 
     public IActionResult Privacy() => View();
 

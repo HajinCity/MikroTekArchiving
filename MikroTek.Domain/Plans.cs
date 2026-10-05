@@ -1,17 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using MikroTek.Domain.Custom;
 
 namespace MikroTek.Domain
 {
-    public class Plans
+    /// <summary>A voucher plan, e.g. "1 Hour" for 5 pesos.</summary>
+    public class Plans : BaseEntity
     {
-        public long Id { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
+
+        /// <summary>How long a voucher lasts, in minutes.</summary>
         public int Duration { get; set; }
+
         public decimal PlanPrice { get; set; }
-        public bool IsActive { get; set; }
-        public DateTime CreatedAt { get; set; }
-        
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        public ICollection<Vouchers> Vouchers { get; set; } = new List<Vouchers>();
     }
 }

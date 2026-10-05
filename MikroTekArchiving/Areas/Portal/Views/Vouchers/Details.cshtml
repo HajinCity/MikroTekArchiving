@@ -1,4 +1,4 @@
-@model DvRow
+﻿@model DvRow
 @{
     ViewData["Title"] = Model.DvNo;
     ViewData["Crumb"] = "Disbursements / DV Archive";
@@ -10,7 +10,10 @@
     else { <span class="badge-status st-incomplete"><i class="bi bi-exclamation-circle"></i> @Model.DocsMissing document(s) missing</span> }
     <span class="badge-status st-closed">PAID @Fmt.Date(Model.PaidDate)</span>
     <span class="me-auto"></span>
-    <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Edit</a>
+    @if (User.CanEncode())
+    {
+        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Edit</a>
+    }
     <a class="btn btn-primary" asp-action="Print" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Print archive record</a>
 </div>
 
@@ -106,7 +109,10 @@
                     </div>
                     <div class="card-footer bg-white d-flex align-items-center">
                         <span class="small text-body-secondary">Checked by: Anely R. Villegas, ADAS III</span>
-                        <button class="btn btn-primary ms-auto"><i class="bi bi-save me-1"></i>Save checklist</button>
+                        @if (User.CanEncode())
+                        {
+                            <button class="btn btn-primary ms-auto"><i class="bi bi-save me-1"></i>Save checklist</button>
+                        }
                     </div>
                 </form>
             </div>
@@ -115,6 +121,8 @@
             <div class="tab-pane fade" id="tab-files">
                 <div class="card">
                     <div class="card-body">
+                        @if (User.CanEncode())
+                        {
                         <form asp-action="AddFiles" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="dropzone mb-3">
                             <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
                             <div class="fw-semibold text-body">Drop the scanned DV packet here</div>
@@ -122,6 +130,7 @@
                             <input type="file" name="files" class="form-control w-auto mx-auto" multiple accept=".pdf,.jpg,.jpeg,.png" />
                             <button class="btn btn-primary btn-sm mt-3"><i class="bi bi-upload me-1"></i>Upload</button>
                         </form>
+                        }
                         <div class="file-row"><i class="bi bi-file-earmark-pdf ficon"></i><div class="flex-fill"><div class="fw-semibold">@(Model.DvNo).pdf</div><div class="small text-body-secondary">Complete DV packet · uploaded by avillegas · @Fmt.Date(Model.PaidDate)</div></div>
                             <a class="btn btn-sm btn-light" href="#"><i class="bi bi-eye"></i> View</a>
                             <a class="btn btn-sm btn-light" href="#"><i class="bi bi-download"></i></a></div>

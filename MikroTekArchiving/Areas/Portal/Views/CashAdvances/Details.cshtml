@@ -1,4 +1,4 @@
-@model CashAdvanceRow
+﻿@model CashAdvanceRow
 @{
     ViewData["Title"] = $"Cash Advance {Model.PayrollNo}";
     ViewData["Crumb"] = "Disbursements / Cash Advances";
@@ -9,7 +9,10 @@
     <span class="dept dept-@Model.Dept">@(Model.Dept == "JHS" ? "Junior High" : "Senior High")</span>
     <span class="badge-status @(Model.Status == "Open" ? "st-open" : "st-closed")">@Model.Status</span>
     <span class="me-auto"></span>
-    <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload" asp-route-ca="@Model.Id"><i class="bi bi-plus-lg me-1"></i>Add DV to this advance</a>
+    @if (User.CanEncode())
+    {
+        <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload" asp-route-ca="@Model.Id"><i class="bi bi-plus-lg me-1"></i>Add DV to this advance</a>
+    }
     <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Register" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Cash Disbursements Register</a>
     <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Alphalist" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Alphalist</a>
 </div>

@@ -1,24 +1,121 @@
-@model List<UserRow>
-@{ ViewData["Title"] = "Staff Users"; ViewData["Crumb"] = "Setup"; }
+﻿@using MikroTek.Domain
+@using MikroTek.Services.DTO
+@model List<UserDto>
+@{
+    ViewData["Title"] = "Staff Users";
+    ViewData["Crumb"] = "Setup";
+    var minPw = MikroTek.Services.CoreServices.UserServices.MinPasswordLength;
+    string RoleCss(UserRole r) => r == UserRole.Admin ? "st-incomplete" : r == UserRole.Bookkeeper ? "st-open" : "st-closed";
+}
 <div class="page-actions">
     <div class="me-auto text-body-secondary">Who can sign in. <b>Admin</b> — everything · <b>Bookkeeper</b> — encode, upload, print · <b>Viewer</b> — search, view and print only.</div>
-    <button class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Add User</button>
+    <button class="btn btn-primary" type="button" data-user-add><i class="bi bi-person-plus me-1"></i>Add User</button>
 </div>
 <div class="card">
-    <table class="table table-portal">
+    <div class="table-responsive">
+    <table class="table table-portal mb-0">
         <thead><tr><th>Name</th><th>Username</th><th>Position</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead>
         <tbody>
             @foreach (var u in Model)
             {
-                <tr>
-                    <td><span class="avatar d-inline-grid me-2" style="width:28px;height:28px;font-size:.7rem">@string.Concat(u.FullName.Split(' ').Where(p => p.Length > 1).Take(2).Select(p => p[0]))</span>@u.FullName</td>
-                    <td class="mono">@u.Username</td><td>@u.Position</td>
-                    <td><span class="badge-status @(u.Role == "Admin" ? "st-incomplete" : u.Role == "Bookkeeper" ? "st-open" : "st-closed")">@u.Role</span></td>
-                    <td class="small">@(u.LastLogin?.ToString("MMM d, yyyy h:mm tt") ?? "Never")</td>
-                    <td>@if (u.Active) { <span class="badge-status st-complete">Active</span> } else { <span class="badge-status st-closed">Disabled</span> }</td>
-                    <td class="text-end text-nowrap"><button class="btn btn-sm btn-light" title="Edit"><i class="bi bi-pencil"></i></button> <button class="btn btn-sm btn-light" title="Reset password"><i class="bi bi-key"></i></button></td>
+                var me = u.Id == User.UserId();
+                <tr class="@(u.ActiveStatus ? "" : "text-body-secondary")">
+                    <td><span class="app-avatar d-inline-grid me-2 align-middle" style="width:28px;height:28px;font-size:.7rem">@u.Initials</span>@u.Name @if (me) { <span class="badge text-bg-light border ms-1">you</span> }</td>
+                    <td class="mono">@u.Username</td>
+                    <td>@u.Position</td>
+                    <td><span class="badge-status @RoleCss(u.Role)">@u.Role</span></td>
+                    <td class="small">@(u.LastLoginTime?.ToString("MMM d, yyyy h:mm tt") ?? "Never")</td>
+                    <td>@if (u.ActiveStatus) { <span class="badge-status st-complete">Active</span> } else { <span class="badge-status st-closed">Disabled</span> }</td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-light" type="button" title="Edit" data-user-edit
+                                data-id="@u.Id" data-username="@u.Username" data-name="@u.Name" data-position="@u.Position"
+                                data-role="@u.Role" data-active="@(u.ActiveStatus ? "true" : "false")"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light" type="button" title="Reset password" data-user-reset
+                                data-id="@u.Id" data-name="@u.Name"><i class="bi bi-key"></i></button>
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
+    </div>
 </div>
+
+<!-- Add / edit -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" asp-action="SaveUser" method="post">
+            <div class="modal-header"><h2 class="modal-title h5" id="userModalTitle">Add user</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="Id" value="0" />
+                <div class="mb-3"><label class="form-label" for="uName">Full name</label><input id="uName" name="Name" class="form-control" maxlength="100" required /></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6"><label class="form-label" for="uUsername">Username</label><input id="uUsername" name="Username" class="form-control" pattern="[a-zA-Z0-9._\-]{3,50}" title="3–50 letters, numbers, dot, dash or underscore" autocomplete="off" required /></div>
+                    <div class="col-sm-6"><label class="form-label" for="uPosition">Position <span class="text-body-secondary small">(optional)</span></label><input id="uPosition" name="Position" class="form-control" maxlength="100" placeholder="e.g. ADAS III" /></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="uRole">Role</label>
+                    <select id="uRole" name="Role" class="form-select">
+                        <option value="Viewer">Viewer — search, view and print</option>
+                        <option value="Bookkeeper">Bookkeeper — encode, upload, print</option>
+                        <option value="Admin">Admin — everything, including setup and users</option>
+                    </select>
+                </div>
+                <div class="mb-3" data-new-only>
+                    <label class="form-label" for="uPassword">Password</label>
+                    <input id="uPassword" name="Password" type="password" class="form-control" minlength="@minPw" autocomplete="new-password" />
+                    <div class="form-text">At least @minPw characters. Give it to the person privately; they can change it after signing in.</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="uActive" name="ActiveStatus" value="true" checked />
+                    <input type="hidden" name="ActiveStatus" value="false" />
+                    <label class="form-check-label" for="uActive">Active (can sign in)</label>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset password -->
+<div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <form class="modal-content" asp-action="ResetPassword" method="post">
+            <div class="modal-header"><h2 class="modal-title h5" id="resetModalTitle">Reset password</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="id" />
+                <p class="small mb-2">New password for <b data-reset-name></b>:</p>
+                <input name="newPassword" type="password" class="form-control" minlength="@minPw" autocomplete="new-password" required />
+                <div class="form-text">At least @minPw characters.</div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Reset</button></div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const um = document.getElementById("userModal"), f = um.querySelector("form");
+    const userModal = new bootstrap.Modal(um), resetModal = new bootstrap.Modal(document.getElementById("resetModal"));
+    const set = (n, v) => { f.elements[n].value = v; };
+    function open(d) {
+        const isNew = !d;
+        document.getElementById("userModalTitle").textContent = isNew ? "Add user" : "Edit " + d.name;
+        set("Id", isNew ? "0" : d.id); set("Name", isNew ? "" : d.name); set("Username", isNew ? "" : d.username);
+        set("Position", isNew ? "" : (d.position || "")); set("Role", isNew ? "Viewer" : d.role);
+        document.getElementById("uActive").checked = isNew ? true : d.active === "true";
+        um.querySelector("[data-new-only]").hidden = !isNew;
+        f.elements["Password"].required = isNew; f.elements["Password"].value = "";
+        userModal.show();
+    }
+    document.querySelector("[data-user-add]").addEventListener("click", () => open(null));
+    document.querySelectorAll("[data-user-edit]").forEach(b => b.addEventListener("click", () => open(b.dataset)));
+    document.querySelectorAll("[data-user-reset]").forEach(b => b.addEventListener("click", () => {
+        const rf = document.querySelector("#resetModal form");
+        rf.elements["id"].value = b.dataset.id; rf.elements["newPassword"].value = "";
+        document.querySelector("[data-reset-name]").textContent = b.dataset.name;
+        resetModal.show();
+    }));
+})();
+</script>
+}

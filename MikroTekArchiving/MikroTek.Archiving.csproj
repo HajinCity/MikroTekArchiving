@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MikroTek.Common\MikroTek.Common.csproj" />
     <ProjectReference Include="..\MikroTek.Domain\MikroTek.Domain.csproj" />
     <ProjectReference Include="..\MikroTek.Services\MikroTek.Services.csproj" />
   </ItemGroup>

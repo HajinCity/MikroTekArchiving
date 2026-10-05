@@ -1,13 +1,14 @@
-using System.Net.NetworkInformation;
+﻿using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
-using MikroTekArchiving.Data;
-using MikroTekArchiving.Services;
-using MikroTekArchiving.Services.Routers;
+using MikroTek.Archiving.Areas.Portal.Helpers;
+using MikroTek.Common;
+using MikroTek.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,18 +18,29 @@ builder.Host.UseWindowsService();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Database: LocalDB while developing (appsettings.json),
+// Database (DB), query classes, services, router and the voucher expiry job: all registered in
+// MikroTek.Services/DBServices.cs. LocalDB while developing (appsettings.json),
 // SQL Server Express on the server PC (appsettings.Production.json).
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// HotspotDemo:Enabled = true on your PC (appsettings.json), false on the school server
+// (appsettings.Production.json), where the real voucher login is on the MikroTik.
+var hotspotDemo = builder.Configuration.GetValue("HotspotDemo:Enabled", true);
+builder.Services.AddMikroTekServices(builder.Configuration.GetConnectionString("DefaultConnection")!, hotspotDemo);
 
-// Router: we don't have a MikroTik yet, so use the simulated one.
-// Later: builder.Services.AddSingleton<IRouterService, MikrotikRouterService>();
-builder.Services.AddSingleton<IRouterService, FakeRouterService>();
-
-// Voucher rules + background job that expires vouchers every 30 seconds.
-builder.Services.AddScoped<VoucherService>();
-builder.Services.AddHostedService<VoucherExpiryWorker>();
+// Portal sign-in: a cookie that lasts 8 hours of activity (14 days with "Keep me signed in").
+// Every request re-checks the account, so disabling a user locks them out at once.
+builder.Services.AddAuthentication(PortalAuth.Scheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Portal/Account/Login";
+        options.LogoutPath = "/Portal/Account/Logout";
+        options.AccessDeniedPath = "/Portal/Account/Denied";
+        options.Cookie.Name = "MikroTek.Portal";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Events = new CookieAuthenticationEvents { OnValidatePrincipal = PortalAuth.ValidateAsync };
+    });
 
 // Keep the login/form keys in App_Data so users stay signed in and forms keep working
 // after the server restarts (otherwise every restart logs everybody out).
@@ -49,7 +61,7 @@ var app = builder.Build();
 var dbReady = false;
 try
 {
-    await DbSeeder.SeedAsync(app.Services);
+    await DBServices.InitializeDatabaseAsync(app.Services);
     dbReady = true;
 }
 catch (Exception ex)
@@ -77,12 +89,13 @@ if (app.Configuration.GetValue("Hosting:UseHttpsRedirection", true))
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
 
 // Quick check from any PC: http://SERVER-IP:5000/health
-app.MapGet("/health", async (AppDbContext db) =>
+app.MapGet("/health", async (DB db) =>
 {
     bool canConnect;
     try { canConnect = await db.Database.CanConnectAsync(); } catch { canConnect = false; }
