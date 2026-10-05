@@ -17,5 +17,19 @@ namespace MikroTek.Services.DAL
              orderby f.CreatedAt, f.Id
              select new ArchiveFileDto(f.Id, f.OwnerType, f.OwnerId, f.FileName, f.ContentType, f.SizeBytes, f.CreatedAt, u == null ? null : u.Name))
             .ToListAsync();
+
+        public Task<List<ArchiveFiles>> GetByOwnerAsync(FileOwner ownerType, long ownerId) =>
+            Query.Where(f => f.OwnerType == ownerType && f.OwnerId == ownerId).ToListAsync();
+
+        /// <summary>How many files each record of this kind has: record Id → count.</summary>
+        public Task<Dictionary<long, int>> CountByOwnerAsync(FileOwner ownerType) =>
+            Query.Where(f => f.OwnerType == ownerType).GroupBy(f => f.OwnerId)
+                 .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+
+        /// <summary>Files attached to a voucher or cash advance that is no longer in the database.</summary>
+        public Task<List<ArchiveFiles>> GetOrphansAsync() =>
+            Query.Where(f => (f.OwnerType == FileOwner.Voucher && !Db.Set<DisbursementVouchers>().Any(v => v.Id == f.OwnerId))
+                          || (f.OwnerType == FileOwner.CashAdvance && !Db.Set<CashAdvances>().Any(c => c.Id == f.OwnerId)))
+                 .ToListAsync();
     }
 }

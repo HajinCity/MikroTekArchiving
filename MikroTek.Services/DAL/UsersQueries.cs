@@ -18,6 +18,10 @@ namespace MikroTek.Services.DAL
         public Task<int> CountActiveAdminsAsync(long excludeId = 0) =>
             CountAsync(u => u.Role == UserRole.Admin && u.ActiveStatus && u.Id != excludeId);
 
+        /// <summary>User Id → full name, to show who encoded or uploaded something.</summary>
+        public Task<Dictionary<long, string>> GetNamesAsync() =>
+            Query.ToDictionaryAsync(u => u.Id, u => u.Name);
+
         public Task<List<Users>> GetAllSortedAsync() =>
             Query.OrderByDescending(u => u.ActiveStatus).ThenBy(u => u.Name).ToListAsync();
     }

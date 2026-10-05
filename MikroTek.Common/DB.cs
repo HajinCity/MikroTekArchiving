@@ -16,6 +16,14 @@ namespace MikroTek.Common
         public DbSet<RolePermissions> RolePermissions => Set<RolePermissions>();
         public DbSet<UacsAccounts> UacsAccounts => Set<UacsAccounts>();
         public DbSet<ArchiveFiles> ArchiveFiles => Set<ArchiveFiles>();
+        public DbSet<Payees> Payees => Set<Payees>();
+        public DbSet<ChecklistTemplates> ChecklistTemplates => Set<ChecklistTemplates>();
+        public DbSet<ChecklistTemplateItems> ChecklistTemplateItems => Set<ChecklistTemplateItems>();
+        public DbSet<SchoolProfiles> SchoolProfiles => Set<SchoolProfiles>();
+        public DbSet<CashAdvances> CashAdvances => Set<CashAdvances>();
+        public DbSet<DisbursementVouchers> DisbursementVouchers => Set<DisbursementVouchers>();
+        public DbSet<DvLines> DvLines => Set<DvLines>();
+        public DbSet<DvChecklistItems> DvChecklistItems => Set<DvChecklistItems>();
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -61,6 +69,113 @@ namespace MikroTek.Common
                 f.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
                 f.Property(x => x.OwnerType).HasConversion<string>().HasMaxLength(20);
                 f.HasIndex(x => new { x.OwnerType, x.OwnerId });
+            });
+
+            b.Entity<Payees>(p =>
+            {
+                p.Property(x => x.Name).HasMaxLength(200).IsRequired();
+                p.HasIndex(x => x.Name).IsUnique();
+                p.Property(x => x.Tin).HasMaxLength(30);
+                p.Property(x => x.Address).HasMaxLength(250);
+                p.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+                p.Property(x => x.TaxType).HasConversion<string>().HasMaxLength(20);
+            });
+
+            b.Entity<ChecklistTemplates>(t =>
+            {
+                t.Property(x => x.Name).HasMaxLength(200).IsRequired();
+                t.HasIndex(x => x.Name).IsUnique();
+                t.HasMany(x => x.Items).WithOne(i => i.Template)
+                 .HasForeignKey(i => i.TemplateId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            b.Entity<ChecklistTemplateItems>(i => i.Property(x => x.Label).HasMaxLength(300).IsRequired());
+
+            b.Entity<SchoolProfiles>(s =>
+            {
+                s.Property(x => x.SchoolName).HasMaxLength(200).IsRequired();
+                s.Property(x => x.Region).HasMaxLength(150);
+                s.Property(x => x.Division).HasMaxLength(150);
+                s.Property(x => x.District).HasMaxLength(150);
+                s.Property(x => x.Address).HasMaxLength(250);
+                s.Property(x => x.JhsBankAccount).HasMaxLength(100);
+                s.Property(x => x.ShsBankAccount).HasMaxLength(100);
+                s.Property(x => x.ResponsibilityCenter).HasMaxLength(50);
+                s.Property(x => x.FundCluster).HasMaxLength(50);
+                s.Property(x => x.HeadName).HasMaxLength(150);
+                s.Property(x => x.HeadPosition).HasMaxLength(150);
+                s.Property(x => x.BookkeeperName).HasMaxLength(150);
+                s.Property(x => x.BookkeeperPosition).HasMaxLength(150);
+                s.Property(x => x.ValidatorName).HasMaxLength(150);
+                s.Property(x => x.ValidatorPosition).HasMaxLength(150);
+                s.Property(x => x.CashUnitName).HasMaxLength(150);
+                s.Property(x => x.CashUnitPosition).HasMaxLength(150);
+            });
+
+            b.Entity<CashAdvances>(c =>
+            {
+                c.Property(x => x.Department).HasConversion<string>().HasMaxLength(10);
+                c.Property(x => x.FundType).HasConversion<string>().HasMaxLength(20);
+                c.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+                c.Property(x => x.PayrollNo).HasMaxLength(50).IsRequired();
+                c.HasIndex(x => x.PayrollNo).IsUnique();
+                c.Property(x => x.AdaNo).HasMaxLength(50);
+                c.Property(x => x.Date).HasColumnType("date");
+                c.Property(x => x.Amount).HasPrecision(18, 2);
+                c.Property(x => x.Period).HasMaxLength(100);
+                c.Property(x => x.FundCluster).HasMaxLength(50);
+                c.Property(x => x.Officer).HasMaxLength(150);
+                c.Property(x => x.OfficerPosition).HasMaxLength(150);
+                c.Property(x => x.VerifiedBy).HasMaxLength(150);
+                c.Property(x => x.VerifiedByPosition).HasMaxLength(150);
+            });
+
+            b.Entity<DisbursementVouchers>(v =>
+            {
+                v.Property(x => x.DvNo).HasMaxLength(30);
+                v.HasIndex(x => x.DvNo).IsUnique();
+                v.Property(x => x.Date).HasColumnType("date");
+                v.Property(x => x.PaidDate).HasColumnType("date");
+                v.Property(x => x.Type).HasMaxLength(200);
+                v.Property(x => x.Payee).HasMaxLength(200);
+                v.Property(x => x.Tin).HasMaxLength(30);
+                v.Property(x => x.Address).HasMaxLength(250);
+                v.Property(x => x.Particulars).HasMaxLength(1000);
+                v.Property(x => x.FundCluster).HasMaxLength(50);
+                v.Property(x => x.ResponsibilityCenter).HasMaxLength(50);
+                v.Property(x => x.MfoPap).HasMaxLength(50);
+                v.Property(x => x.OrsBurs).HasMaxLength(50);
+                v.Property(x => x.Tax1).HasPrecision(18, 2);
+                v.Property(x => x.Tax3).HasPrecision(18, 2);
+                v.Property(x => x.Mode).HasMaxLength(30);
+                v.Property(x => x.CheckNo).HasMaxLength(30);
+                v.Property(x => x.Bank).HasMaxLength(100);
+                v.Property(x => x.ReceivedBy).HasMaxLength(150);
+                v.Property(x => x.OrNo).HasMaxLength(50);
+                v.Property(x => x.JevNo).HasMaxLength(50);
+                v.Property(x => x.ChecklistRemarks).HasMaxLength(500);
+                // A cash advance that has DVs cannot be deleted by accident.
+                v.HasOne(x => x.CashAdvance).WithMany(c => c.Vouchers)
+                 .HasForeignKey(x => x.CashAdvanceId).OnDelete(DeleteBehavior.Restrict);
+                v.HasMany(x => x.Lines).WithOne(l => l.Dv)
+                 .HasForeignKey(l => l.DvId).OnDelete(DeleteBehavior.Cascade);
+                v.HasMany(x => x.Checklist).WithOne(c => c.Dv)
+                 .HasForeignKey(c => c.DvId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            b.Entity<DvLines>(l =>
+            {
+                l.Property(x => x.Code).HasMaxLength(10).IsRequired();
+                l.Property(x => x.Title).HasMaxLength(150).IsRequired();
+                l.Property(x => x.Amount).HasPrecision(18, 2);
+            });
+
+            b.Entity<DvChecklistItems>(c =>
+            {
+                c.Property(x => x.Label).HasMaxLength(300).IsRequired();
+                c.Property(x => x.Mark).HasConversion<string>().HasMaxLength(20);
+                c.Property(x => x.DateText).HasMaxLength(20);
+                c.Property(x => x.Remarks).HasMaxLength(200);
             });
 
             b.Entity<Plans>(p =>

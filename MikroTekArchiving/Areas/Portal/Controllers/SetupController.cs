@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MikroTek.Archiving.Areas.Portal.Helpers;
-using MikroTek.Archiving.Areas.Portal.TemplateData;
 using MikroTek.Services.DTO;
 using MikroTek.Services.Interface;
 using MikroTek.Services.Utils;
@@ -8,12 +7,24 @@ using MikroTek.Services.Utils;
 namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
 /// <summary>Reference data: payees, UACS accounts, fund budgets, checklist templates, school profile.</summary>
-public class SetupController(IFundBudgets budgets, IUacsAccounts accounts) : PortalControllerBase
+public class SetupController(IFundBudgets budgets, IUacsAccounts accounts, IPayees payees,
+    IChecklistTemplates templates, ISchoolProfile school) : PortalControllerBase
 {
-    [Permission(Permissions.SetupPayees)]
-    public IActionResult Payees() => View(SampleData.Payees);
+    // ---------------------------------------------------------------- Payees
 
-    // ---------------------------------------------------------------- UACS accounts (real data)
+    [Permission(Permissions.SetupPayees)]
+    public async Task<IActionResult> Payees() => View(await payees.GetAllAsync());
+
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupPayees)]
+    public async Task<IActionResult> SavePayee(SavePayeeRequest request)
+    {
+        var result = await payees.SaveAsync(request, User.UserId());
+        if (result.Success) Toast(request.Id == 0 ? "Payee added." : "Changes to the payee saved.");
+        else ToastError(result.Error!);
+        return RedirectToAction(nameof(Payees));
+    }
+
+    // ---------------------------------------------------------------- UACS accounts
 
     [Permission(Permissions.SetupAccounts)]
     public async Task<IActionResult> Accounts() => View(await accounts.GetAllAsync());
@@ -27,31 +38,62 @@ public class SetupController(IFundBudgets budgets, IUacsAccounts accounts) : Por
         return RedirectToAction(nameof(Accounts));
     }
 
-    [Permission(Permissions.SetupChecklists)]
-    public IActionResult Checklists() => View(SampleData.Templates);
+    // ---------------------------------------------------------------- Checklist templates
 
     [Permission(Permissions.SetupChecklists)]
-    public IActionResult Checklist(int id) => View(SampleData.Templates.FirstOrDefault(t => t.Id == id) ?? SampleData.Templates[0]);
+    public async Task<IActionResult> Checklists() => View(await templates.GetAllAsync());
 
-    [Permission(Permissions.SetupSchool)]
-    public IActionResult School() => View();
-
-    /// <summary>Template save for the sample Setup pages. "back" = the page the form came from.</summary>
-    [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult Save(string back)
+    /// <summary>id = 0 opens an empty form for a new checklist type.</summary>
+    [Permission(Permissions.SetupChecklists)]
+    public async Task<IActionResult> Checklist(long id)
     {
-        var needed = back switch
-        {
-            nameof(Payees) => Permissions.SetupPayees,
-            nameof(Checklists) or nameof(Checklist) => Permissions.SetupChecklists,
-            nameof(School) => Permissions.SetupSchool,
-            _ => null
-        };
-        if (needed is null || !User.Can(needed)) return Forbid();
-        return TemplateSaved("Changes saved", back);
+        if (id == 0) return View(new ChecklistTemplateDto(0, "", true, [""], 0));
+
+        var template = await templates.GetAsync(id);
+        if (template is not null) return View(template);
+        ToastError("That checklist type no longer exists.");
+        return RedirectToAction(nameof(Checklists));
     }
 
-    // ---------------------------------------------------------------- Fund budgets (real data)
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupChecklists)]
+    public async Task<IActionResult> SaveChecklist(SaveChecklistTemplateRequest request)
+    {
+        var result = await templates.SaveAsync(request, User.UserId());
+        if (!result.Success)
+        {
+            // Show the form again with what was typed, so nothing is lost.
+            ViewData["Error"] = result.Error;
+            var typed = (request.Items ?? []).Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
+            return View(nameof(Checklist), new ChecklistTemplateDto(request.Id, request.Name ?? "", request.IsActive, typed.Count == 0 ? [""] : typed, 0));
+        }
+        Toast("Checklist type saved.");
+        return RedirectToAction(nameof(Checklists));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupChecklists)]
+    public async Task<IActionResult> DeleteChecklist(long id)
+    {
+        var result = await templates.DeleteAsync(id, User.UserId());
+        if (result.Success) Toast("Checklist type deleted. DVs already encoded keep their checklist.");
+        else ToastError(result.Error!);
+        return RedirectToAction(nameof(Checklists));
+    }
+
+    // ---------------------------------------------------------------- School & signatories
+
+    [Permission(Permissions.SetupSchool)]
+    public async Task<IActionResult> School() => View(await school.GetAsync());
+
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupSchool)]
+    public async Task<IActionResult> SaveSchool(SchoolProfileDto profile)
+    {
+        var result = await school.SaveAsync(profile, User.UserId());
+        if (result.Success) Toast("School profile and signatories saved.");
+        else ToastError(result.Error!);
+        return RedirectToAction(nameof(School));
+    }
+
+    // ---------------------------------------------------------------- Fund budgets
 
     [Permission(Permissions.SetupBudgets)]
     public async Task<IActionResult> Budgets(int? year) =>

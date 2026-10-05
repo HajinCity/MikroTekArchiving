@@ -1,16 +1,75 @@
-@model DvRow?
+﻿@model DvForm
 @{
-    var isNew = Model is null;
-    ViewData["Title"] = isNew ? "Encode New DV" : $"Edit {Model!.DvNo}";
+    var v = Model.Values;
+    ViewData["Title"] = Model.IsNew ? "Encode New DV" : Model.IsDraft ? "Encode Uploaded DV" : $"Edit {Model.Existing!.DvNo}";
     ViewData["Crumb"] = "Disbursements / DV Archive";
-    var caId = int.TryParse(Context.Request.Query["ca"], out var c) ? c : Model?.CashAdvanceId ?? 2;
-    var lines = Model?.Lines ?? [new ExpenseLine("", "", 0)];
-    var expenseAccounts = SampleData.Accounts.Where(a => a.Group == "Expense").ToList();
-    var typeName = Model?.Type ?? SampleData.Templates[0].Name;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var hasScan = Model.Scans.Count > 0;
+    var lines = v.Lines;
+    string Money(decimal? amount) => amount is null or 0 ? "" : amount.Value.ToString("0.00", inv);
+    var modes = new[] { "Check", "ADA", "MDS Check", "Commercial Check" };
+    // What the page scripts need: checklist templates, this DV's own checklist, and each department's bank account.
+    var templatesJson = System.Text.Json.JsonSerializer.Serialize(Model.Templates.ToDictionary(t => t.Id.ToString(), t => new { t.Name, t.Items }));
+    var ownJson = System.Text.Json.JsonSerializer.Serialize(new
+    {
+        Type = Model.Existing?.TemplateId?.ToString() ?? "",
+        Items = v.Check.Select(c => new { Label = c.Label ?? "", Mark = c.Mark ?? "", Date = c.Date ?? "" })
+    });
 }
-<form asp-action="Save" asp-route-id="@Model?.Id" method="post" enctype="multipart/form-data" id="dvForm">
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-octagon-fill"></i><div><b>Not saved.</b> @Model.Error</div></div>
+}
+@if (Model.CashAdvances.Count == 0)
+{
+    <div class="card"><div class="card-body">
+        <partial name="UI/_EmptyState" model="@(new EmptyState("Record a cash advance first", "Every DV is charged to a cash advance (School MOOE Slip). Record it, then come back to encode the DV.", "bi-cash-stack",
+            User.Can(Permissions.CashAdvancesEncode) ? "Record Cash Advance" : null, Url.Action("Create", "CashAdvances")))" />
+    </div></div>
+    return;
+}
+@if (Model.IsDraft)
+{
+    <div class="alert alert-light border d-flex flex-wrap align-items-center gap-3">
+        <i class="bi bi-cloud-check fs-4 text-primary"></i>
+        <div class="flex-fill">
+            <b>The scan is uploaded.</b> Type the details from it below, then press <b>Save to archive</b>.
+            <div class="small text-body-secondary">Until then this is a draft: it is not counted in any total or report.</div>
+        </div>
+    </div>
+}
+<form asp-action="Save" method="post" enctype="multipart/form-data" id="dvForm">
+<input type="hidden" name="Id" value="@v.Id" />
 <div class="row g-3">
-    <div class="col-xl-8">
+    @if (hasScan)
+    {
+        <!-- LEFT: the scan, so the values can be copied from it -->
+        <div class="col-xl-5">
+            <div class="scan-side">
+                <div class="card scan-viewer">
+                    <div class="card-header d-flex align-items-center gap-2">
+                        <span>Scan</span>
+                        @if (Model.Scans.Count > 1)
+                        {
+                            <select class="form-select form-select-sm w-auto" id="scanPick" aria-label="Which scanned file to show">
+                                @foreach (var s in Model.Scans) { <option value="@Url.Action("Open", "Files", new { id = s.Id })" data-pdf="@(s.IsPdf ? "true" : "false")">@s.FileName</option> }
+                            </select>
+                        }
+                        else
+                        {
+                            <span class="small text-body-secondary text-truncate">@Model.Scans[0].FileName</span>
+                        }
+                        <a class="btn btn-sm btn-light ms-auto text-nowrap" id="scanNewTab" target="_blank" rel="noopener" href="@Url.Action("Open", "Files", new { id = Model.Scans[0].Id })"><i class="bi bi-box-arrow-up-right me-1"></i>New tab</a>
+                    </div>
+                    <div class="scan-stage scan-stage-doc" id="scanStage"
+                         data-first="@Url.Action("Open", "Files", new { id = Model.Scans[0].Id })" data-first-pdf="@(Model.Scans[0].IsPdf ? "true" : "false")"></div>
+                </div>
+            </div>
+        </div>
+    }
+    <div class="@(hasScan ? "col-xl-7" : "col-12")">
+    <div class="row g-3">
+    <div class="@(hasScan ? "col-12" : "col-xl-8")">
         <div class="card">
             <div class="card-body">
 
@@ -19,37 +78,45 @@
                     <div class="section-title mb-3"><span class="step">1</span>Voucher information</div>
                     <div class="row g-3">
                         <div class="col-md-5">
-                            <label class="form-label">Cash advance</label>
+                            <label class="form-label" for="caSelect">Cash advance</label>
                             <select class="form-select" name="CashAdvanceId" id="caSelect">
-                                @foreach (var ca in SampleData.CashAdvances)
+                                @foreach (var ca in Model.CashAdvances.Where(c => c.IsOpen || c.Id == v.CashAdvanceId))
                                 {
-                                    <option value="@ca.Id" data-prefix="@(ca.Dept)2026-@ca.BatchNo.ToString("00")-" data-balance="@ca.Balance" selected="@(ca.Id == caId)">
-                                        @ca.Dept · @ca.PayrollNo · bal. @Fmt.Peso(ca.Balance)
+                                    // Editing: the balance shown must not count this DV's own amount twice.
+                                    var balance = ca.Balance + (Model.Existing is { IsDraft: false } e && e.CashAdvanceId == ca.Id ? e.Net : 0);
+                                    <option value="@ca.Id" data-next="@Model.NextNumbers.GetValueOrDefault(ca.Id)" data-balance="@balance.ToString(inv)"
+                                            data-bank="@Model.School.BankFor(ca.Dept)" selected="@(ca.Id == v.CashAdvanceId)">
+                                        @ca.Dept · @ca.PayrollNo · bal. @Fmt.Peso(ca.Balance)@(ca.IsOpen ? "" : " (liquidated)")
                                     </option>
                                 }
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">DV No.</label>
-                            <input class="form-control fw-semibold" name="DvNo" id="dvNo" value="@(Model?.DvNo ?? "JHS2026-03-054")" />
-                            <div class="form-text">Suggested next number</div>
+                            <label class="form-label" for="dvNo">DV No.</label>
+                            <input class="form-control fw-semibold" name="DvNo" id="dvNo" value="@v.DvNo" maxlength="30" required />
+                            <div class="form-text" id="dvNoHint"></div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">DV Date</label>
-                            <input class="form-control" type="date" name="Date" value="@(Model?.Date.ToString("yyyy-MM-dd") ?? "2026-09-30")" />
+                            <label class="form-label" for="dvDate">DV Date</label>
+                            <input class="form-control" type="date" name="Date" id="dvDate" value="@v.Date?.ToString("yyyy-MM-dd")" required />
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label">Transaction type <span class="text-body-secondary fw-normal">(decides the checklist)</span></label>
+                            <label class="form-label" for="typeSelect">Transaction type <span class="text-body-secondary fw-normal">(decides the checklist)</span></label>
                             <select class="form-select" name="Type" id="typeSelect">
-                                @foreach (var t in SampleData.Templates)
+                                <option value="">— No checklist —</option>
+                                @foreach (var t in Model.Templates)
                                 {
-                                    <option value="@t.Id" selected="@(t.Name == typeName)">@t.Name</option>
+                                    <option value="@t.Id" selected="@(t.Id == v.Type)">@t.Name@(t.IsActive ? "" : " (not in use)")</option>
                                 }
                             </select>
+                            @if (Model.Templates.Count == 0)
+                            {
+                                <div class="form-text">No checklist types yet. @if (User.Can(Permissions.SetupChecklists)) { <a asp-controller="Setup" asp-action="Checklists">Add them in Setup → Checklist Templates</a> } else { <span>Ask the admin to add them in Setup → Checklist Templates.</span> }</div>
+                            }
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Fund Cluster</label>
-                            <input class="form-control" name="FundCluster" value="Regular" />
+                            <label class="form-label" for="fundCluster">Fund Cluster</label>
+                            <input class="form-control" name="FundCluster" id="fundCluster" value="@v.FundCluster" maxlength="50" />
                         </div>
                     </div>
                 </div>
@@ -59,23 +126,24 @@
                     <div class="section-title mb-3"><span class="step">2</span>Payee</div>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Payee name</label>
-                            <input class="form-control" name="Payee" list="payeeList" id="payee" value="@Model?.Payee" placeholder="Start typing — pick an existing payee or type a new one" />
+                            <label class="form-label" for="payee">Payee name</label>
+                            <input class="form-control" name="Payee" list="payeeList" id="payee" value="@v.Payee" maxlength="200" autocomplete="off" placeholder="Start typing — pick an existing payee or type a new one" required />
                             <datalist id="payeeList">
-                                @foreach (var p in SampleData.Payees) { <option value="@p.Name" data-tin="@p.Tin" data-address="@p.Address"></option> }
+                                @foreach (var p in Model.Payees) { <option value="@p.Name" data-tin="@p.Tin" data-address="@p.Address"></option> }
                             </datalist>
+                            <div class="form-text">A new name is added to Setup → Payees when you save.</div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">TIN / Employee No.</label>
-                            <input class="form-control mono" name="Tin" id="tin" value="@Model?.Tin" />
+                            <label class="form-label" for="tin">TIN / Employee No.</label>
+                            <input class="form-control mono" name="Tin" id="tin" value="@v.Tin" maxlength="30" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">ORS/BURS No.</label>
-                            <input class="form-control" name="OrsBurs" />
+                            <label class="form-label" for="orsBurs">ORS/BURS No.</label>
+                            <input class="form-control" name="OrsBurs" id="orsBurs" value="@v.OrsBurs" maxlength="50" />
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Address</label>
-                            <input class="form-control" name="Address" id="address" value="@Model?.Address" />
+                            <label class="form-label" for="address">Address</label>
+                            <input class="form-control" name="Address" id="address" value="@v.Address" maxlength="250" />
                         </div>
                     </div>
                 </div>
@@ -85,19 +153,23 @@
                     <div class="section-title mb-3"><span class="step">3</span>Particulars &amp; accounting entry</div>
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label">Particulars</label>
-                            <textarea class="form-control" rows="2" name="Particulars">@Model?.Particulars</textarea>
+                            <label class="form-label" for="particulars">Particulars</label>
+                            <textarea class="form-control" rows="2" name="Particulars" id="particulars" maxlength="1000">@v.Particulars</textarea>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Responsibility Center</label>
-                            <input class="form-control" name="ResponsibilityCenter" value="100010000" />
+                            <label class="form-label" for="rc">Responsibility Center</label>
+                            <input class="form-control" name="ResponsibilityCenter" id="rc" value="@v.ResponsibilityCenter" maxlength="50" />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">MFO/PAP</label>
-                            <input class="form-control" name="MfoPap" value="MOOE" />
+                            <label class="form-label" for="mfo">MFO/PAP</label>
+                            <input class="form-control" name="MfoPap" id="mfo" value="@v.MfoPap" maxlength="50" />
                         </div>
                         <div class="col-12">
                             <label class="form-label">Expense breakdown <span class="text-body-secondary fw-normal">(debit lines — these become the CDR columns)</span></label>
+                            @if (Model.Accounts.Count == 0)
+                            {
+                                <div class="alert alert-warning small py-2"><i class="bi bi-exclamation-triangle me-1"></i>There are no UACS accounts in use. Add them in Setup → UACS Accounts first.</div>
+                            }
                             <table class="table table-sm align-middle mb-2" id="linesTable">
                                 <thead class="small text-body-secondary"><tr><th>UACS account</th><th style="width:180px" class="text-end">Amount</th><th style="width:40px"></th></tr></thead>
                                 <tbody>
@@ -105,12 +177,12 @@
                                     {
                                         <tr>
                                             <td>
-                                                <select class="form-select form-select-sm" name="Lines[@i].Code">
+                                                <select class="form-select form-select-sm" name="Lines[@i].Code" aria-label="UACS account, line @(i + 1)">
                                                     <option value="">— select account —</option>
-                                                    @foreach (var a in expenseAccounts) { <option value="@a.Code" selected="@(a.Code == lines[i].Code)">@a.Code · @a.Title</option> }
+                                                    @foreach (var a in Model.Accounts) { <option value="@a.Code" selected="@(a.Code == lines[i].Code)">@a.Code · @a.Title</option> }
                                                 </select>
                                             </td>
-                                            <td><input class="form-control form-control-sm text-end line-amt" name="Lines[@i].Amount" inputmode="decimal" value="@(lines[i].Amount == 0 ? "" : lines[i].Amount.ToString("0.00"))" placeholder="0.00" /></td>
+                                            <td><input class="form-control form-control-sm text-end line-amt" name="Lines[@i].Amount" inputmode="decimal" value="@Money(lines[i].Amount)" placeholder="0.00" aria-label="Amount, line @(i + 1)" /></td>
                                             <td><button type="button" class="btn btn-sm btn-light remove-line" title="Remove"><i class="bi bi-trash"></i></button></td>
                                         </tr>
                                     }
@@ -119,16 +191,16 @@
                             <button type="button" class="btn btn-sm btn-outline-primary" id="addLine"><i class="bi bi-plus-lg"></i> Add account line</button>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Tax base</label>
+                            <label class="form-label" for="taxBase">Tax base</label>
                             <input class="form-control text-end" id="taxBase" readonly />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Withholding 1% <button type="button" class="btn btn-link btn-sm p-0 ms-1 calc" data-rate="0.01" data-target="tax1">compute</button></label>
-                            <input class="form-control text-end tax" name="Tax1" id="tax1" value="@(Model?.Tax1 > 0 ? Model.Tax1.ToString("0.00") : "")" placeholder="0.00" />
+                            <label class="form-label" for="tax1">Withholding 1% <button type="button" class="btn btn-link btn-sm p-0 ms-1 calc" data-rate="0.01" data-target="tax1">compute</button></label>
+                            <input class="form-control text-end tax" name="Tax1" id="tax1" inputmode="decimal" value="@Money(v.Tax1)" placeholder="0.00" />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Withholding 3% <button type="button" class="btn btn-link btn-sm p-0 ms-1 calc" data-rate="0.03" data-target="tax3">compute</button></label>
-                            <input class="form-control text-end tax" name="Tax3" id="tax3" value="@(Model?.Tax3 > 0 ? Model.Tax3.ToString("0.00") : "")" placeholder="0.00" />
+                            <label class="form-label" for="tax3">Withholding 3% <button type="button" class="btn btn-link btn-sm p-0 ms-1 calc" data-rate="0.03" data-target="tax3">compute</button></label>
+                            <input class="form-control text-end tax" name="Tax3" id="tax3" inputmode="decimal" value="@Money(v.Tax3)" placeholder="0.00" />
                         </div>
                     </div>
                 </div>
@@ -138,32 +210,35 @@
                     <div class="section-title mb-3"><span class="step">4</span>Payment (Receipt of Payment box)</div>
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label">Mode of payment</label>
-                            <select class="form-select" name="Mode"><option>Check</option><option>ADA</option><option>MDS Check</option><option>Commercial Check</option></select>
+                            <label class="form-label" for="mode">Mode of payment</label>
+                            <select class="form-select" name="Mode" id="mode">
+                                @foreach (var m in modes) { <option selected="@(m == v.Mode)">@m</option> }
+                                @if (!string.IsNullOrEmpty(v.Mode) && !modes.Contains(v.Mode)) { <option selected>@v.Mode</option> }
+                            </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Check / ADA No.</label>
-                            <input class="form-control mono" name="CheckNo" value="@Model?.CheckNo" />
+                            <label class="form-label" for="checkNo">Check / ADA No.</label>
+                            <input class="form-control mono" name="CheckNo" id="checkNo" value="@v.CheckNo" maxlength="30" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Date paid</label>
-                            <input class="form-control" type="date" name="PaidDate" value="@Model?.PaidDate?.ToString("yyyy-MM-dd")" />
+                            <label class="form-label" for="paidDate">Date paid</label>
+                            <input class="form-control" type="date" name="PaidDate" id="paidDate" value="@v.PaidDate?.ToString("yyyy-MM-dd")" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Bank / Account</label>
-                            <input class="form-control" name="Bank" value="DBP Pagadian 0-06071-840-8" />
+                            <label class="form-label" for="bank">Bank / Account</label>
+                            <input class="form-control" name="Bank" id="bank" value="@v.Bank" maxlength="100" />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Received by (printed name)</label>
-                            <input class="form-control" name="ReceivedBy" value="@Model?.ReceivedBy" />
+                            <label class="form-label" for="receivedBy">Received by (printed name)</label>
+                            <input class="form-control" name="ReceivedBy" id="receivedBy" value="@v.ReceivedBy" maxlength="150" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">OR / Invoice No.</label>
-                            <input class="form-control" name="OrNo" />
+                            <label class="form-label" for="orNo">OR / Invoice No.</label>
+                            <input class="form-control" name="OrNo" id="orNo" value="@v.OrNo" maxlength="50" />
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">JEV No.</label>
-                            <input class="form-control" name="JevNo" />
+                            <label class="form-label" for="jevNo">JEV No.</label>
+                            <input class="form-control" name="JevNo" id="jevNo" value="@v.JevNo" maxlength="50" />
                         </div>
                     </div>
                 </div>
@@ -171,18 +246,23 @@
                 <!-- 5. CHECKLIST -->
                 <div class="form-section">
                     <div class="section-title mb-1"><span class="step">5</span>Supporting documents checklist</div>
-                    <div class="small text-body-secondary mb-3">Loaded from the <b id="typeLabel"></b> cover sheet. Tick ✓ for attached, NA if not applicable.</div>
+                    <div class="small text-body-secondary mb-3" id="checklistHint"></div>
                     <div class="checklist" id="checklist"></div>
+                    <input type="hidden" name="ChecklistRemarks" value="@v.ChecklistRemarks" />
                 </div>
 
                 <!-- 6. FILES -->
                 <div class="form-section">
                     <div class="section-title mb-3"><span class="step">6</span>Scanned DV packet</div>
+                    @if (hasScan)
+                    {
+                        <div class="small text-body-secondary mb-2"><i class="bi bi-paperclip"></i> @Model.Scans.Count file(s) already attached: @string.Join(", ", Model.Scans.Select(s => s.FileName)). You can add more here.</div>
+                    }
                     <div class="dropzone">
                         <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
-                        <div class="fw-semibold text-body">Attach the scanned PDF of the whole packet</div>
-                        <div class="small mb-3">PDF, JPG or PNG · up to 100 MB each</div>
-                        <input type="file" name="files" class="form-control w-auto mx-auto mw-100" multiple accept=".pdf,.jpg,.jpeg,.png" />
+                        <div class="fw-semibold text-body">@(hasScan ? "Attach more scanned pages" : "Attach the scanned PDF of the whole packet")</div>
+                        <div class="small mb-3">PDF, JPG or PNG · up to 100 MB each · can also be added later</div>
+                        <input type="file" name="files" class="form-control w-auto mx-auto mw-100" multiple accept=".pdf,.jpg,.jpeg,.png" aria-label="Scanned files" />
                     </div>
                 </div>
             </div>
@@ -190,8 +270,8 @@
     </div>
 
     <!-- SUMMARY -->
-    <div class="col-xl-4">
-        <div class="card summary-card">
+    <div class="@(hasScan ? "col-12" : "col-xl-4")">
+        <div class="card @(hasScan ? "" : "summary-card")">
             <div class="card-header">Summary <span class="sub">— check against the paper DV</span></div>
             <div class="card-body">
                 <div class="row-amt"><span>Gross amount</span><span id="sGross">₱0.00</span></div>
@@ -209,44 +289,61 @@
                 <hr />
                 <div class="d-flex small"><span>Checklist</span><span class="ms-auto" id="sDocs"></span></div>
             </div>
-            <div class="card-footer bg-white d-grid gap-2">
-                <button class="btn btn-primary"><i class="bi bi-save me-1"></i>@(isNew ? "Save to archive" : "Save changes")</button>
-                <a class="btn btn-light" asp-action="@(isNew ? "Index" : "Details")" asp-route-id="@Model?.Id">Cancel</a>
+            <div class="card-footer bg-white d-flex flex-wrap gap-2 @(hasScan ? "justify-content-end" : "flex-column")">
+                @if (Model.IsNew) { <a class="btn btn-light" asp-action="Index">Cancel</a> }
+                else if (Model.IsDraft) { <a class="btn btn-light" asp-action="Upload">Finish later</a> }
+                else { <a class="btn btn-light" asp-action="Details" asp-route-id="@v.Id">Cancel</a> }
+                <button class="btn btn-primary @(hasScan ? "" : "order-first")" id="saveBtn"><i class="bi bi-save me-1"></i>@(Model.IsNew || Model.IsDraft ? "Save to archive" : "Save changes")</button>
             </div>
         </div>
     </div>
+    </div>
+    </div>
 </div>
 </form>
+@if (Model.IsDraft)
+{
+    <form asp-action="Delete" asp-route-id="@v.Id" method="post" class="mt-3 text-end">
+        <button class="btn btn-sm btn-outline-danger" data-ui-confirm="Discard this draft and delete its uploaded scan?"><i class="bi bi-trash me-1"></i>Discard this draft</button>
+    </form>
+}
 
 <template id="lineTpl">
     <tr>
-        <td><select class="form-select form-select-sm" name="Lines[__i__].Code"><option value="">— select account —</option>
-            @foreach (var a in expenseAccounts) { <option value="@a.Code">@a.Code · @a.Title</option> }</select></td>
-        <td><input class="form-control form-control-sm text-end line-amt" name="Lines[__i__].Amount" inputmode="decimal" placeholder="0.00" /></td>
+        <td><select class="form-select form-select-sm" name="Lines[__i__].Code" aria-label="UACS account"><option value="">— select account —</option>
+            @foreach (var a in Model.Accounts) { <option value="@a.Code">@a.Code · @a.Title</option> }</select></td>
+        <td><input class="form-control form-control-sm text-end line-amt" name="Lines[__i__].Amount" inputmode="decimal" placeholder="0.00" aria-label="Amount" /></td>
         <td><button type="button" class="btn btn-sm btn-light remove-line" title="Remove"><i class="bi bi-trash"></i></button></td>
     </tr>
 </template>
 
 @section Scripts {
 <script>
-    // Checklist templates (later these come from the database).
-    const templates = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(SampleData.Templates.ToDictionary(t => t.Id.ToString(), t => new { t.Name, t.Items })));
-    const existing = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model?.Checklist.ToDictionary(x => x.Label, x => new { x.Mark, x.Date }) ?? new()));
+    const templates = @Html.Raw(templatesJson);
+    // The checklist this DV already has (kept as it is unless the type is changed).
+    const own = @Html.Raw(ownJson);
+    const isNew = @(Model.IsNew || Model.IsDraft ? "true" : "false");
 
     const $ = id => document.getElementById(id);
     const peso = n => "₱" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const num = el => parseFloat((el.value || "0").replace(/,/g, "")) || 0;
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
     function renderChecklist() {
-        const t = templates[$("typeSelect").value];
-        $("typeLabel").textContent = t.Name;
-        $("checklist").innerHTML = t.Items.map((label, i) => {
-            const e = existing[label] || { Mark: "", Date: "" };
+        const type = $("typeSelect").value, t = templates[type];
+        // Same type as before: show the DV's own list. Another type: that type's list (marks kept where the document name matches).
+        const sameAsSaved = own.Items.length > 0 && type === own.Type;
+        const marks = Object.fromEntries(own.Items.map(x => [x.Label, x]));
+        const items = sameAsSaved ? own.Items : (t ? t.Items.map(label => marks[label] || { Label: label, Mark: "", Date: "" }) : []);
+        $("checklistHint").innerHTML = t
+            ? `Loaded from the <b>${esc(t.Name)}</b> cover sheet. Tick ✓ for attached, NA if not applicable.`
+            : "Choose a transaction type above to load its checklist.";
+        $("checklist").innerHTML = items.map((e, i) => {
             const r = (v, cls, txt) => `<input type="radio" class="btn-check" name="Check[${i}].Mark" value="${v}" id="c${i}${cls}" ${e.Mark === v ? "checked" : ""}><label class="btn btn-outline-${cls} btn-mark" for="c${i}${cls}">${txt}</label>`;
             return `<div class="item">
                 <div class="btn-group btn-group-sm">${r("✓", "success", "✓")}${r("NA", "secondary", "NA")}${r("", "danger", "<i class='bi bi-dash'></i>")}</div>
-                <div class="label">${label}<input type="hidden" name="Check[${i}].Label" value="${label.replace(/"/g, "&quot;")}"></div>
-                <input class="form-control form-control-sm" style="width:90px" name="Check[${i}].Date" placeholder="date" value="${e.Date || ""}">
+                <div class="label">${esc(e.Label)}<input type="hidden" name="Check[${i}].Label" value="${esc(e.Label)}"></div>
+                <input class="form-control form-control-sm" style="width:90px" name="Check[${i}].Date" maxlength="20" placeholder="date" value="${esc(e.Date || "")}" aria-label="Date for ${esc(e.Label)}">
             </div>`;
         }).join("");
         update();
@@ -269,7 +366,7 @@
         const gross = [...document.querySelectorAll(".line-amt")].reduce((s, el) => s + num(el), 0);
         const tax = num($("tax1")) + num($("tax3"));
         const net = gross - tax;
-        const bal = parseFloat($("caSelect").selectedOptions[0].dataset.balance);
+        const bal = parseFloat($("caSelect").selectedOptions[0].dataset.balance) || 0;
         $("taxBase").value = gross.toFixed(2);
         $("sGross").textContent = peso(gross);
         $("sTax").textContent = tax ? "(" + peso(tax) + ")" : "-";
@@ -284,12 +381,23 @@
         $("overWarn").classList.toggle("d-none", net <= bal);
         const marks = [...document.querySelectorAll('#checklist .item')].map(it => it.querySelector("input:checked")?.value ?? "");
         const done = marks.filter(m => m !== "").length;
-        $("sDocs").innerHTML = `${done} of ${marks.length}` + (done < marks.length ? ` <span class="badge-status st-incomplete">${marks.length - done} missing</span>` : ` <span class="badge-status st-complete">complete</span>`);
+        $("sDocs").innerHTML = marks.length === 0 ? "<span class='text-body-secondary'>no checklist</span>"
+            : `${done} of ${marks.length}` + (done < marks.length ? ` <span class="badge-status st-incomplete">${marks.length - done} missing</span>` : ` <span class="badge-status st-complete">complete</span>`);
     }
 
     function reindex() {
         document.querySelectorAll("#linesTable tbody tr").forEach((tr, i) =>
             tr.querySelectorAll("[name]").forEach(el => el.name = el.name.replace(/Lines\[\d+\]/, `Lines[${i}]`)));
+    }
+
+    // A new DV follows its cash advance: the next free DV number and the department's bank account.
+    let suggested = isNew && !$("dvNo").value ? "" : null, bankSuggested = isNew && !$("bank").value ? "" : null;
+    function followCashAdvance() {
+        const opt = $("caSelect").selectedOptions[0];
+        if (suggested !== null && $("dvNo").value === suggested) { $("dvNo").value = suggested = opt.dataset.next || ""; }
+        if (bankSuggested !== null && $("bank").value === bankSuggested) { $("bank").value = bankSuggested = opt.dataset.bank || ""; }
+        $("dvNoHint").textContent = isNew && opt.dataset.next ? "Next free number: " + opt.dataset.next : "";
+        update();
     }
 
     $("addLine").addEventListener("click", () => {
@@ -303,7 +411,8 @@
         if (calc) { $(calc.dataset.target).value = (num($("taxBase")) * parseFloat(calc.dataset.rate)).toFixed(2); update(); }
     });
     document.addEventListener("input", e => { if (e.target.matches(".line-amt, .tax")) update(); });
-    document.addEventListener("change", e => { if (e.target.matches("#checklist input, #caSelect")) update(); });
+    document.addEventListener("change", e => { if (e.target.matches("#checklist input")) update(); });
+    $("caSelect").addEventListener("change", followCashAdvance);
     $("typeSelect").addEventListener("change", renderChecklist);
 
     // Pick a known payee -> fill TIN and address.
@@ -312,6 +421,27 @@
         if (opt) { $("tin").value = opt.dataset.tin; $("address").value = opt.dataset.address; }
     });
 
+    $("dvForm").addEventListener("submit", () => {
+        const b = $("saveBtn");
+        b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+    });
+
+    // The scan beside the form.
+    const stage = $("scanStage");
+    if (stage) {
+        const show = (url, pdf) => {
+            stage.replaceChildren();
+            const el = document.createElement(pdf ? "iframe" : "img");
+            el.src = url; if (pdf) el.title = "Scanned DV"; else el.alt = "Scanned DV";
+            stage.append(el);
+            $("scanNewTab").href = url;
+        };
+        show(stage.dataset.first, stage.dataset.firstPdf === "true");
+        const pick = $("scanPick");
+        if (pick) pick.addEventListener("change", () => show(pick.value, pick.selectedOptions[0].dataset.pdf === "true"));
+    }
+
     renderChecklist();
+    followCashAdvance();
 </script>
 }

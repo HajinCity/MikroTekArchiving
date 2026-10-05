@@ -1,17 +1,39 @@
-﻿@model CashAdvanceRow
+﻿@model CashAdvanceDto
 @{
     ViewData["Title"] = $"Cash Advance {Model.PayrollNo}";
     ViewData["Crumb"] = "Disbursements / Cash Advances";
     var dvs = Model.Vouchers.OrderBy(v => v.Date).ThenBy(v => v.DvNo).ToList();
     var running = Model.Amount;
+    var canEdit = User.Can(Permissions.CashAdvancesEncode);
 }
 <div class="page-actions">
-    <span class="dept dept-@Model.Dept">@(Model.Dept == "JHS" ? "Junior High" : "Senior High")</span>
-    <span class="badge-status @(Model.Status == "Open" ? "st-open" : "st-closed")">@Model.Status</span>
+    <span class="dept dept-@Model.Dept">@Model.DeptName</span>
+    <span class="badge-status @(Model.IsOpen ? "st-open" : "st-closed")">@Model.Status</span>
     <span class="me-auto"></span>
-    @if (User.Can(Permissions.VouchersEncode))
+    @if (User.Can(Permissions.VouchersEncode) && Model.IsOpen)
     {
-        <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload" asp-route-ca="@Model.Id"><i class="bi bi-plus-lg me-1"></i>Add DV to this advance</a>
+        <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Create" asp-route-ca="@Model.Id"><i class="bi bi-plus-lg me-1"></i>Add DV to this advance</a>
+    }
+    @if (canEdit)
+    {
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-gear me-1"></i>Manage</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-2"></i>Edit details</a></li>
+                <li>
+                    <form asp-action="SetLiquidated" asp-route-id="@Model.Id" method="post">
+                        <input type="hidden" name="liquidated" value="@(Model.IsOpen ? "true" : "false")" />
+                        <button class="dropdown-item"><i class="bi @(Model.IsOpen ? "bi-check2-circle" : "bi-arrow-counterclockwise") me-2"></i>@(Model.IsOpen ? "Mark as liquidated" : "Reopen")</button>
+                    </form>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                    <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+                        <button class="dropdown-item text-danger" data-ui-confirm="Delete cash advance @Model.PayrollNo? This cannot be undone."><i class="bi bi-trash me-2"></i>Delete</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
     }
     <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Register" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Cash Disbursements Register</a>
     <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Alphalist" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Alphalist</a>
@@ -27,11 +49,11 @@
                     <dt class="col-5 text-body-secondary fw-normal">ADA No.</dt><dd class="col-7 mono">@Model.AdaNo</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Date</dt><dd class="col-7">@Fmt.LongDate(Model.Date)</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Period covered</dt><dd class="col-7">@Model.Period</dd>
-                    <dt class="col-5 text-body-secondary fw-normal">Batch</dt><dd class="col-7">@Model.BatchNo.ToString("00") (DV series @(Model.Dept)2026-@Model.BatchNo.ToString("00")-###)</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Batch</dt><dd class="col-7">@Model.BatchNo.ToString("00") (DV series @(Model.DvPrefix)###)</dd>
                     <dt class="col-5 text-body-secondary fw-normal">Fund</dt><dd class="col-7">@Model.Dept @Model.FundName</dd>
-                    <dt class="col-5 text-body-secondary fw-normal">Fund cluster</dt><dd class="col-7">Regular</dd>
-                    <dt class="col-5 text-body-secondary fw-normal">Accountable officer</dt><dd class="col-7">@Model.Officer<br /><small class="text-body-secondary">School Principal II</small></dd>
-                    <dt class="col-5 text-body-secondary fw-normal">Verified by</dt><dd class="col-7">Ercel C. Monternel<br /><small class="text-body-secondary">AO IV – Cash Unit</small></dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Fund cluster</dt><dd class="col-7">@Model.FundCluster</dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Accountable officer</dt><dd class="col-7">@Model.Officer<br /><small class="text-body-secondary">@Model.OfficerPosition</small></dd>
+                    <dt class="col-5 text-body-secondary fw-normal">Verified by</dt><dd class="col-7">@Model.VerifiedBy<br /><small class="text-body-secondary">@Model.VerifiedByPosition</small></dd>
                 </dl>
                 <hr />
                 <div class="small text-body-secondary mb-1">Scanned documents <span class="text-body-tertiary">(MOOE slip, CDR, Alphalist)</span></div>
@@ -47,10 +69,12 @@
             <div class="col-12">
                 <div class="card"><div class="card-body">
                     <div class="d-flex small mb-1"><span>Utilization</span><span class="ms-auto fw-semibold">@Model.PercentUsed%</span></div>
-                    <div class="progress" style="height:.8rem"><div class="progress-bar" style="width:@Model.PercentUsed%"></div></div>
+                    <div class="progress" style="height:.8rem"><div class="progress-bar @(Model.Balance < 0 ? "bg-danger" : "")" style="width:@Math.Clamp(Model.PercentUsed, 0, 100)%"></div></div>
                     <div class="small text-body-secondary mt-2">
-                        @if (Model.Balance == 0) { <span><i class="bi bi-check-circle-fill text-success"></i> Fully liquidated — the register balance is zero.</span> }
+                        @if (Model.Balance == 0) { <span><i class="bi bi-check-circle-fill text-success"></i> Fully used — the register balance is zero.</span> }
+                        else if (Model.Balance < 0) { <span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> The DVs are @Fmt.Peso(-Model.Balance) more than the cash advance. Please check the amounts.</span> }
                         else { <span><i class="bi bi-info-circle"></i> @Fmt.Peso(Model.Balance) still to be disbursed or refunded before liquidation.</span> }
+                        @if (Model.DraftCount > 0) { <span class="ms-2"><i class="bi bi-cloud-arrow-up"></i> @Model.DraftCount uploaded scan(s) not yet encoded (not counted).</span> }
                     </div>
                 </div></div>
             </div>
@@ -58,11 +82,14 @@
     </div>
 </div>
 
+@if (dvs.Count > 0)
+{
 <div class="card mb-3">
     <div class="card-body">
         <partial name="_HBars" model="@(new BarChart("Spending by UACS account", $"Gross amounts of {dvs.Count} DVs charged to {Model.PayrollNo}", dvs.SelectMany(v => v.Lines).GroupBy(x => (x.Title, x.Code)).Select(g => new BarItem(g.Key.Title, g.Key.Code, g.Sum(x => x.Amount))).ToList()))" />
     </div>
 </div>
+}
 
 <div class="card">
     <div class="card-header">Disbursement vouchers charged to this advance</div>
@@ -71,6 +98,10 @@
             <thead><tr><th>Date</th><th>DV No.</th><th>Check No.</th><th>Payee</th><th>Type</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net Paid</th><th class="num">Balance</th><th>Packet</th></tr></thead>
             <tbody>
                 <tr class="table-light"><td>@Fmt.Date(Model.Date)</td><td colspan="6" class="fw-semibold">Cash advance received — @Model.PayrollNo</td><td class="num"></td><td class="num fw-semibold">@Fmt.Num(Model.Amount)</td><td></td></tr>
+                @if (dvs.Count == 0)
+                {
+                    <tr><td colspan="10" class="text-center text-body-secondary py-4">No DVs charged to this cash advance yet.</td></tr>
+                }
                 @foreach (var v in dvs)
                 {
                     running -= v.Net;

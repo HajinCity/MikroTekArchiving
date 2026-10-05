@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using MikroTek.Archiving.Areas.Portal.Helpers;
-using MikroTek.Archiving.Areas.Portal.TemplateData;
 using MikroTek.Domain;
 using MikroTek.Services.Interface;
 using MikroTek.Services.Utils;
@@ -13,7 +12,7 @@ namespace MikroTek.Archiving.Areas.Portal.Controllers;
 /// Who may do what follows the record the file belongs to: viewing needs its "view" access,
 /// uploading and removing need its "encode" access.
 /// </summary>
-public class FilesController(IArchiveFiles files) : PortalControllerBase
+public class FilesController(IArchiveFiles files, IDisbursements vouchers, ICashAdvances advances) : PortalControllerBase
 {
     /// <summary>Shows the file in the browser (PDF viewer / picture), or downloads it with ?download=true.</summary>
     [HttpGet]
@@ -35,7 +34,7 @@ public class FilesController(IArchiveFiles files) : PortalControllerBase
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(FileOwner owner, long ownerId, [FromForm(Name = "files")] List<IFormFile>? uploads)
     {
-        if (!Enum.IsDefined(owner) || !OwnerExists(owner, ownerId)) return NotFound();
+        if (!Enum.IsDefined(owner) || !await OwnerExistsAsync(owner, ownerId)) return NotFound();
         if (!User.Can(EditAccess(owner))) return Forbid();
 
         var picked = (uploads ?? []).Where(f => f.Length > 0).ToList();
@@ -79,9 +78,8 @@ public class FilesController(IArchiveFiles files) : PortalControllerBase
     private static string EditAccess(FileOwner owner) =>
         owner == FileOwner.Voucher ? Permissions.VouchersEncode : Permissions.CashAdvancesEncode;
 
-    // Vouchers and cash advances are still sample data; this checks against the same lists the pages show.
-    private static bool OwnerExists(FileOwner owner, long id) =>
-        owner == FileOwner.Voucher ? SampleData.Vouchers.Any(v => v.Id == id) : SampleData.CashAdvances.Any(c => c.Id == id);
+    private async Task<bool> OwnerExistsAsync(FileOwner owner, long id) =>
+        owner == FileOwner.Voucher ? await vouchers.GetAsync(id) is not null : await advances.GetAsync(id) is not null;
 
     private IActionResult BackTo(FileOwner owner, long id) =>
         owner == FileOwner.Voucher

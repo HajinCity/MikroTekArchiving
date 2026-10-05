@@ -1,13 +1,13 @@
 ﻿@*  Charts shown on every DV: amount split, cash advance impact, this DV among the advance's DVs,
-    the advance by type of spending, expense breakdown (when there are 2+ accounts) and (Job Orders) labor days. *@
-@model DvRow
+    the advance by type of spending, and the expense breakdown (when there are 2+ accounts).
+    Needs ViewData["CashAdvance"] = the DV's cash advance. *@
+@model DvDto
 @{
-    var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+    var ca = (CashAdvanceDto)ViewData["CashAdvance"]!;
 
     // Cash advance: what was already spent before this DV, this DV, what remains after it.
     var before = ca.Vouchers.Where(v => v.Date < Model.Date || (v.Date == Model.Date && string.CompareOrdinal(v.DvNo, Model.DvNo) < 0)).Sum(v => v.Net);
     var after = ca.Amount - before - Model.Net;
-    var labor = SampleData.Labor.TryGetValue(Model.Id, out var l) ? l : null;
 
     // Every DV charged to the same cash advance, in DV-number order; this DV is highlighted (emphasis).
     var caDvs = ca.Vouchers.OrderBy(v => v.DvNo).ToList();
@@ -16,12 +16,15 @@
         $"DVs charged to {ca.PayrollNo}", $"{caDvs.Count} DVs · net amounts · this DV in blue",
         Height: Math.Max(160, 50 + caDvs.Count * 30), Highlight: thisIndex);
 
-    // The same cash advance split by type of spending (fixed type order = same colours as the dashboard).
-    var myType = SpendTypes.Of(Model.Type);
-    var typeDonut = new ChartSpec(ChartType.Donut, SpendTypes.Order,
-        [new("Gross", SpendTypes.Order.Select(t => caDvs.Where(v => SpendTypes.Of(v.Type) == t).Sum(v => v.Gross)))],
+    // The same cash advance split by type of spending (types listed A–Z, as on the dashboard).
+    var types = SpendTypes.For(caDvs);
+    var myType = SpendTypes.Of(Model, types);
+    var typeDonut = new ChartSpec(ChartType.Donut, types,
+        [new("Gross", types.Select(t => caDvs.Where(v => SpendTypes.Of(v, types) == t).Sum(v => v.Gross)))],
         $"{ca.PayrollNo} by type of spending", $"Gross amounts · this DV is {myType} (pulled out)",
-        Height: 220, Highlight: Array.IndexOf(SpendTypes.Order, myType));
+        Height: 220, Highlight: types.IndexOf(myType));
+    // With one DV or one type there is nothing to compare, so those two charts are left out.
+    var showComparisons = caDvs.Count > 1;
     var hasBreakdown = Model.Lines.Count > 1;
 }
 <div class="row g-3">
@@ -40,10 +43,12 @@
         <ui-card class="h-100">
             <partial name="UI/_Meter" model="@(new Meter($"Charge against cash advance {ca.PayrollNo}", ca.Amount,
                 [new("Earlier DVs", before, "muted"), new("This DV", Model.Net, "s1"), new("Left", after, "track")],
-                $"{Fmt.Peso(ca.Amount)} released · this DV uses {(Model.Net / ca.Amount * 100):0.#}%"))" />
+                $"{Fmt.Peso(ca.Amount)} released · this DV uses {(ca.Amount == 0 ? 0 : Model.Net / ca.Amount * 100):0.#}%"))" />
         </ui-card>
     </div>
 
+    @if (showComparisons)
+    {
     <!-- 3. This DV among all DVs of the cash advance (emphasis bar) -->
     <div class="col-lg-7">
         <ui-card class="h-100">
@@ -58,46 +63,16 @@
         </ui-card>
     </div>
 
+    }
+
     @if (hasBreakdown)
     {
         <!-- 5. Expense breakdown by UACS (only when the DV has 2+ account lines; one line would be a one-bar chart) -->
-        <div class="col-md-@(labor is null ? "12" : "6")">
+        <div class="col-12">
             <ui-card class="h-100">
                 <partial name="UI/_Chart" model="@(new ChartSpec(ChartType.HBar, Model.Lines.Select(x => x.Title), [new("Gross", Model.Lines.Select(x => x.Amount))],
                     "Expense breakdown by UACS account", $"{Model.Lines.Count} account lines · gross {Fmt.Peso(Model.Gross)}", Height: Math.Max(120, 60 + Model.Lines.Count * 40)))" />
             </ui-card>
-        </div>
-    }
-
-    @if (labor is not null)
-    {
-        var first = labor[0];
-        var daysInView = 15;
-        <!-- 6. Job Order: labor days -->
-        <div class="col-md-@(hasBreakdown ? "6" : "12")">
-            <div class="card h-100"><div class="card-body viz">
-                <div class="ui-chart-title">Labor days (Timebook &amp; Payroll)</div>
-                <div class="ui-chart-sub mb-2">@(new DateTime(first.Year, first.Month, 1).ToString("MMMM yyyy")) · days 1–@daysInView</div>
-                @foreach (var w in labor)
-                {
-                    <div class="small mb-1"><b>@w.Name</b> · @w.Occupation · @w.Days.Length days × @Fmt.Peso(w.DailyRate) = <b>@Fmt.Peso(w.Amount)</b></div>
-                    <div class="daystrip mb-2" role="img" aria-label="@w.Name worked @w.Days.Length days">
-                        @for (var d = 1; d <= daysInView; d++)
-                        {
-                            var date = new DateTime(w.Year, w.Month, d);
-                            var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-                            var worked = w.Days.Contains(d);
-                            <div class="d @(worked ? "work" : weekend ? "wkend" : "")" tabindex="0"
-                                 data-tip="<b>@date.ToString("ddd, MMM d")</b><br />@(worked ? $"Worked · {Fmt.Peso(w.DailyRate)}" : weekend ? "Weekend" : "No work")">@d</div>
-                        }
-                    </div>
-                }
-                <div class="legend">
-                    <span><span class="sw seg-1"></span>Worked</span>
-                    <span><span class="sw" style="background:repeating-linear-gradient(135deg,#f3f5f9 0 3px,#e3e7ee 3px 5px)"></span>Weekend</span>
-                    <span><span class="sw seg-track"></span>No work</span>
-                </div>
-            </div></div>
         </div>
     }
 </div>

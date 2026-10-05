@@ -3,6 +3,7 @@
     Top bar (dark) · left sidebar (collapsible) · page bar with breadcrumb · content.
     Pages set: ViewData["Title"] and optionally ViewData["Crumb"] = "Section / Sub-section".
 *@
+@inject MikroTek.Services.Interface.IDisbursements Disbursements
 @{
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     var action = ViewContext.RouteData.Values["action"]?.ToString();
@@ -11,6 +12,10 @@
     var title = ViewData["Title"] as string ?? "Portal";
     var crumbs = (ViewData["Crumb"] as string)?.Split(" / ", StringSplitOptions.RemoveEmptyEntries) ?? [];
     bool Can(string permission) => User.Can(permission);
+    // Numbers for the bell and the "Upload Scanned DV" badge (only for people who can see DVs).
+    var alerts = User.Can(Permissions.VouchersView) ? await Disbursements.GetAlertsAsync() : new ArchiveAlerts(0, 0);
+    var canEncode = User.Can(Permissions.VouchersEncode);
+    var alertCount = (canEncode && alerts.Drafts > 0 ? 1 : 0) + (alerts.Incomplete > 0 ? 1 : 0);
     var canSetup = User.CanAny(Permissions.SetupPayees, Permissions.SetupAccounts, Permissions.SetupBudgets, Permissions.SetupChecklists, Permissions.SetupSchool);
 }
 <!DOCTYPE html>
@@ -45,13 +50,22 @@
             <button class="app-icon-btn" type="button" data-ui-theme-toggle title="Light / dark mode"><i class="bi bi-moon-stars"></i></button>
             <div class="dropdown">
                 <button class="app-icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
-                    <i class="bi bi-bell"></i><span class="app-dot">3</span>
+                    <i class="bi bi-bell"></i>@if (alertCount > 0) { <span class="app-dot">@alertCount</span> }
                 </button>
                 <div class="dropdown-menu dropdown-menu-end p-0" style="width:320px">
                     <div class="px-3 py-2 fw-semibold border-bottom">Notifications</div>
-                    <a class="dropdown-item py-2 text-wrap" asp-controller="Vouchers" asp-action="Review" asp-route-id="101"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>JHS2026-03-053.pdf is waiting for review<div class="small text-body-secondary ms-4">Today, 9:14 AM</div></a>
-                    <a class="dropdown-item py-2 text-wrap" asp-controller="Vouchers" asp-action="Index" asp-route-status="incomplete"><i class="bi bi-exclamation-triangle text-warning me-2"></i>3 DV packets have missing documents<div class="small text-body-secondary ms-4">Yesterday</div></a>
-                    <a class="dropdown-item py-2 text-wrap" asp-controller="CashAdvances" asp-action="Details" asp-route-id="2"><i class="bi bi-cash-stack text-success me-2"></i>JHS cash advance is 83% used<div class="small text-body-secondary ms-4">Sep 2</div></a>
+                    @if (canEncode && alerts.Drafts > 0)
+                    {
+                        <a class="dropdown-item py-2 text-wrap" asp-controller="Vouchers" asp-action="Upload"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>@alerts.Drafts uploaded scan(s) waiting to be encoded</a>
+                    }
+                    @if (alerts.Incomplete > 0)
+                    {
+                        <a class="dropdown-item py-2 text-wrap" asp-controller="Vouchers" asp-action="Index" asp-route-status="incomplete"><i class="bi bi-exclamation-triangle text-warning me-2"></i>@alerts.Incomplete DV packet(s) with missing documents or no scan</a>
+                    }
+                    @if (alertCount == 0)
+                    {
+                        <div class="px-3 py-3 small text-body-secondary"><i class="bi bi-check2-circle text-success me-1"></i>Nothing needs attention.</div>
+                    }
                 </div>
             </div>
             <div class="dropdown ms-1">
@@ -98,21 +112,14 @@
             }
             @if (Can(Permissions.VouchersEncode))
             {
-                <a class="app-nav-link @A(Is("Vouchers", "Upload", "Review"))" asp-controller="Vouchers" asp-action="Upload" title="Upload Scanned DV"><i class="bi bi-cloud-arrow-up"></i><span>Upload Scanned DV</span><span class="badge rounded-pill text-bg-warning">1</span></a>
+                <a class="app-nav-link @A(Is("Vouchers", "Upload", "Review"))" asp-controller="Vouchers" asp-action="Upload" title="Upload Scanned DV"><i class="bi bi-cloud-arrow-up"></i><span>Upload Scanned DV</span>@if (alerts.Drafts > 0) { <span class="badge rounded-pill text-bg-warning" title="Scans uploaded but not yet encoded">@alerts.Drafts</span> }</a>
                 <a class="app-nav-link @A(Is("Vouchers", "Create"))" asp-controller="Vouchers" asp-action="Create" title="Manual Encode"><i class="bi bi-keyboard"></i><span>Manual Encode</span></a>
             }
 
             @if (Can(Permissions.ReportsView))
             {
             <div class="app-nav-label">Reports</div>
-            <button class="app-nav-link @A(Is("Reports"))" type="button" data-bs-toggle="collapse" data-bs-target="#navReports" aria-expanded="@(Is("Reports") ? "true" : "false")" title="Reports">
-                <i class="bi bi-printer"></i><span>Liquidation Reports</span><i class="bi bi-chevron-right caret"></i>
-            </button>
-            <ul class="app-nav-sub collapse @(Is("Reports") ? "show" : "")" id="navReports">
-                <li><a class="@A(Is("Reports", "Index"))" asp-controller="Reports" asp-action="Index">All reports</a></li>
-                <li><a asp-controller="Reports" asp-action="Register" asp-route-id="1">Cash Disbursements Register</a></li>
-                <li><a asp-controller="Reports" asp-action="Alphalist" asp-route-id="1">Alphalist of Payees</a></li>
-            </ul>
+            <a class="app-nav-link @A(Is("Reports"))" asp-controller="Reports" asp-action="Index" title="Liquidation Reports"><i class="bi bi-printer"></i><span>Liquidation Reports</span></a>
             }
 
             @if (canSetup)
@@ -156,10 +163,6 @@
                 }
             </ul>
         </nav>
-        <div class="app-sidebar-foot">
-            <span class="badge text-bg-warning">Template preview</span>
-            <div class="mt-1">Sign-in, Settings and Fund Budgets are live. DVs, cash advances and reports still show sample data.</div>
-        </div>
     </aside>
     <div class="app-backdrop" data-ui-sidebar-close></div>
 

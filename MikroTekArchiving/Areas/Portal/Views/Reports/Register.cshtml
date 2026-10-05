@@ -1,14 +1,17 @@
-@model CashAdvanceRow
+﻿@model CashAdvanceDto
 @{
     Layout = "_PrintLayout";
     ViewData["Title"] = $"Cash Disbursements Register – {Model.PayrollNo}";
     ViewData["Landscape"] = true;
     const string OfficeSupplies = "5020301000";
+    var school = (SchoolProfileDto)ViewData["School"]!;
+    var schoolName = (school.SchoolName ?? "").ToUpperInvariant();
+    string Upper(string? text) => (text ?? "").ToUpperInvariant();
     var dvs = Model.Vouchers.OrderBy(v => v.Date).ThenBy(v => v.DvNo).ToList();
     var balance = Model.Amount;
 
     // "Others" lines per DV: every expense except Office Supplies, then the BIR withholdings as negatives.
-    List<(string Desc, string Code, decimal Amt)> Others(DvRow v)
+    List<(string Desc, string Code, decimal Amt)> Others(DvDto v)
     {
         var list = v.Lines.Where(l => l.Code != OfficeSupplies).Select(l => (l.Title, l.Code, l.Amount)).ToList();
         if (v.Tax1 > 0) list.Add(("Due to BIR- 1%", "2020101000", -v.Tax1));
@@ -24,12 +27,12 @@
 <div class="right italic small">Appendix 43</div>
 <div class="center bold" style="font-size:12pt; margin-bottom:8px">CASH DISBURSEMENTS REGISTER</div>
 <table class="plain small" style="margin-bottom:6px">
-    <tr><td style="width:17%" class="bold">Entity Name:</td><td style="width:40%"><u>DEPARTMENT OF EDUCATION/@SampleData.School- @Model.Dept</u></td>
+    <tr><td style="width:17%" class="bold">Entity Name:</td><td style="width:40%"><u>DEPARTMENT OF EDUCATION/@schoolName- @Model.Dept</u></td>
         <td style="width:17%" class="bold">Name of Accountable Officer:</td><td>@Model.Officer.ToUpperInvariant()</td></tr>
-    <tr><td class="bold">Sub-Office/District/Division:</td><td><u>JOSEFINA DISTRICT/ DIVISION OF ZAMBOANGA DEL SUR</u></td><td class="bold">Official Designation:</td><td>PRINCIPAL II</td></tr>
-    <tr><td class="bold">Municipality/City/Province:</td><td><u>JOSEFINA DISTRICT</u></td><td class="bold">Station:</td><td>@SampleData.School</td></tr>
-    <tr><td class="bold">Fund Cluster:</td><td><u>REGULAR</u></td><td class="bold">Register No.:</td><td><u>2026-@Model.BatchNo.ToString("00")-00@(Model.Id)</u></td></tr>
-    <tr><td class="bold italic" colspan="2">For the Month of <span style="color:#c8102e">@Model.Period.ToUpperInvariant()</span> @(Model.Dept == "JHS" ? "JUNIOR HIGH" : "SENIOR HIGH")</td><td class="bold">Sheet No.:</td><td><u>1 of 1</u></td></tr>
+    <tr><td class="bold">Sub-Office/District/Division:</td><td><u>@Upper(school.District)/ @Upper(school.Division)</u></td><td class="bold">Official Designation:</td><td>@Upper(Model.OfficerPosition)</td></tr>
+    <tr><td class="bold">Municipality/City/Province:</td><td><u>@Upper(school.District)</u></td><td class="bold">Station:</td><td>@schoolName</td></tr>
+    <tr><td class="bold">Fund Cluster:</td><td><u>@Upper(Model.FundCluster)</u></td><td class="bold">Register No.:</td><td><u>@Model.Date.Year-@Model.BatchNo.ToString("00")-@Model.Id.ToString("000")</u></td></tr>
+    <tr><td class="bold italic" colspan="2">For the Month of <span style="color:#c8102e">@Model.Period.ToUpperInvariant()</span> @Model.DeptName.ToUpperInvariant()</td><td class="bold">Sheet No.:</td><td><u>1 of 1</u></td></tr>
 </table>
 
 <table class="grid small">
@@ -91,7 +94,7 @@
 </div>
 
 <div style="display:flex; justify-content:space-between; margin-top:18px" class="small">
-    <div>CERTIFIED CORRECT:<br /><div class="sig"><div class="name">@Model.Officer</div>School Head<br />Signature over Printed Name</div></div>
-    <div>CHECKED BY:<br /><div class="sig"><div class="name">Anely R. Villegas</div>ADAS III</div></div>
-    <div>RECEIVED BY:<br /><div class="sig"><div class="name">Riza P. Quiroga</div>Validator/ADAS III</div></div>
+    <div>CERTIFIED CORRECT:<br /><div class="sig"><div class="name">@(Model.Officer.Length == 0 ? "\u00a0" : Model.Officer)</div>@(Model.OfficerPosition.Length == 0 ? "School Head" : Model.OfficerPosition)<br />Signature over Printed Name</div></div>
+    <div>CHECKED BY:<br /><div class="sig"><div class="name">@(string.IsNullOrWhiteSpace(school.BookkeeperName) ? "\u00a0" : school.BookkeeperName)</div>@school.BookkeeperPosition</div></div>
+    <div>RECEIVED BY:<br /><div class="sig"><div class="name">@(string.IsNullOrWhiteSpace(school.ValidatorName) ? "\u00a0" : school.ValidatorName)</div>@school.ValidatorPosition</div></div>
 </div>

@@ -1,18 +1,25 @@
-﻿@model DvRow
+﻿@model DvDto
 @{
     ViewData["Title"] = Model.DvNo;
     ViewData["Crumb"] = "Disbursements / DV Archive";
-    var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+    var ca = (CashAdvanceDto)ViewData["CashAdvance"]!;
+    var school = (SchoolProfileDto)ViewData["School"]!;
+    var canEdit = User.Can(Permissions.VouchersEncode);
+    string Dash(string? text) => string.IsNullOrWhiteSpace(text) ? "—" : text;
     var files = (MikroTek.Archiving.Areas.Portal.Models.FilesPanel)ViewData["Files"]!;
 }
 <div class="page-actions">
     <span class="dept dept-@Model.Dept">@Model.Dept</span>
     @if (Model.IsComplete) { <span class="badge-status st-complete"><i class="bi bi-check2-circle"></i> Packet complete</span> }
     else { <span class="badge-status st-incomplete"><i class="bi bi-exclamation-circle"></i> @Model.DocsMissing document(s) missing</span> }
-    <span class="badge-status st-closed">PAID @Fmt.Date(Model.PaidDate)</span>
+    @if (Model.PaidDate is not null) { <span class="badge-status st-closed">PAID @Fmt.Date(Model.PaidDate)</span> }
+    else { <span class="badge-status st-open">Not yet paid</span> }
     <span class="me-auto"></span>
-    @if (User.Can(Permissions.VouchersEncode))
+    @if (canEdit)
     {
+        <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+            <button class="btn btn-outline-danger" title="Delete this DV" data-ui-confirm="Delete DV @Model.DvNo with its checklist and scanned files? This cannot be undone."><i class="bi bi-trash"></i></button>
+        </form>
         <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Edit</a>
     }
     <a class="btn btn-primary" asp-action="Print" asp-route-id="@Model.Id"><i class="bi bi-printer me-1"></i>Print archive record</a>
@@ -36,13 +43,13 @@
                         <div class="row g-3 small">
                             <div class="col-md-4"><div class="text-body-secondary">DV No.</div><div class="fw-semibold fs-6">@Model.DvNo</div></div>
                             <div class="col-md-4"><div class="text-body-secondary">DV Date</div><div class="fw-semibold">@Fmt.LongDate(Model.Date)</div></div>
-                            <div class="col-md-4"><div class="text-body-secondary">Fund Cluster</div><div class="fw-semibold">Regular</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">Fund Cluster</div><div class="fw-semibold">@Dash(Model.FundCluster)</div></div>
                             <div class="col-md-8"><div class="text-body-secondary">Payee</div><div class="fw-semibold">@Model.Payee</div><div>@Model.Address</div></div>
                             <div class="col-md-4"><div class="text-body-secondary">TIN / Employee No.</div><div class="fw-semibold mono">@Model.Tin</div></div>
                             <div class="col-12"><div class="text-body-secondary">Particulars</div><div>@Model.Particulars</div></div>
-                            <div class="col-md-4"><div class="text-body-secondary">Responsibility Center</div><div>100010000</div></div>
-                            <div class="col-md-4"><div class="text-body-secondary">MFO/PAP</div><div>MOOE</div></div>
-                            <div class="col-md-4"><div class="text-body-secondary">Transaction type</div><div>@Model.Type</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">Responsibility Center</div><div>@Dash(Model.ResponsibilityCenter)</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">MFO/PAP</div><div>@Dash(Model.MfoPap)</div></div>
+                            <div class="col-md-4"><div class="text-body-secondary">Transaction type</div><div>@Dash(Model.Type)</div></div>
                         </div>
                     </div>
                 </div>
@@ -66,13 +73,13 @@
                 <div class="card">
                     <div class="card-header">Payment</div>
                     <div class="card-body row g-3 small">
-                        <div class="col-md-3"><div class="text-body-secondary">Mode</div><div class="fw-semibold">@Model.Mode</div></div>
-                        <div class="col-md-3"><div class="text-body-secondary">Check / ADA No.</div><div class="fw-semibold mono">@Model.CheckNo</div></div>
-                        <div class="col-md-3"><div class="text-body-secondary">Date paid</div><div class="fw-semibold">@Fmt.Date(Model.PaidDate)</div></div>
-                        <div class="col-md-3"><div class="text-body-secondary">Bank / Account</div><div>DBP Pagadian 0-06071-840-8</div></div>
-                        <div class="col-md-6"><div class="text-body-secondary">Received by</div><div class="fw-semibold">@Model.ReceivedBy</div></div>
-                        <div class="col-md-3"><div class="text-body-secondary">OR / Invoice No.</div><div>—</div></div>
-                        <div class="col-md-3"><div class="text-body-secondary">JEV No.</div><div>—</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Mode</div><div class="fw-semibold">@Dash(Model.Mode)</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Check / ADA No.</div><div class="fw-semibold mono">@Dash(Model.CheckNo)</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Date paid</div><div class="fw-semibold">@Dash(Fmt.Date(Model.PaidDate))</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">Bank / Account</div><div>@Dash(Model.Bank)</div></div>
+                        <div class="col-md-6"><div class="text-body-secondary">Received by</div><div class="fw-semibold">@Dash(Model.ReceivedBy)</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">OR / Invoice No.</div><div>@Dash(Model.OrNo)</div></div>
+                        <div class="col-md-3"><div class="text-body-secondary">JEV No.</div><div>@Dash(Model.JevNo)</div></div>
                     </div>
                 </div>
             </div>
@@ -86,31 +93,35 @@
             <div class="tab-pane fade" id="tab-check">
                 <form class="card" asp-action="SaveChecklist" asp-route-id="@Model.Id" method="post">
                     <div class="card-header d-flex align-items-center">
-                        <span>@Model.Type</span>
+                        <span>@(Model.Type.Length == 0 ? "Checklist" : Model.Type)</span>
                         <span class="ms-auto small text-body-secondary">✓ = attached · NA = not applicable · blank = missing</span>
                     </div>
                     <div class="card-body checklist">
+                        @if (Model.Checklist.Count == 0)
+                        {
+                            <div class="text-body-secondary small mb-3"><i class="bi bi-info-circle me-1"></i>This DV has no checklist. Choose a transaction type on <b>Edit</b> to give it one.</div>
+                        }
                         @for (var i = 0; i < Model.Checklist.Count; i++)
                         {
                             var c = Model.Checklist[i];
                             <div class="item">
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <input type="radio" class="btn-check" name="m@(i)" id="m@(i)y" checked="@(c.Mark == "✓")" /><label class="btn btn-outline-success btn-mark" for="m@(i)y">✓</label>
-                                    <input type="radio" class="btn-check" name="m@(i)" id="m@(i)n" checked="@(c.Mark == "NA")" /><label class="btn btn-outline-secondary btn-mark" for="m@(i)n">NA</label>
-                                    <input type="radio" class="btn-check" name="m@(i)" id="m@(i)x" checked="@(c.Mark == "")" /><label class="btn btn-outline-danger btn-mark" for="m@(i)x"><i class="bi bi-dash"></i></label>
+                                    <input type="radio" class="btn-check" name="check[@i].Mark" value="✓" id="m@(i)y" checked="@(c.Mark == "✓")" disabled="@(!canEdit)" /><label class="btn btn-outline-success btn-mark" for="m@(i)y" title="Attached">✓</label>
+                                    <input type="radio" class="btn-check" name="check[@i].Mark" value="NA" id="m@(i)n" checked="@(c.Mark == "NA")" disabled="@(!canEdit)" /><label class="btn btn-outline-secondary btn-mark" for="m@(i)n" title="Not applicable">NA</label>
+                                    <input type="radio" class="btn-check" name="check[@i].Mark" value="" id="m@(i)x" checked="@(c.Mark == "")" disabled="@(!canEdit)" /><label class="btn btn-outline-danger btn-mark" for="m@(i)x" title="Missing"><i class="bi bi-dash"></i></label>
                                 </div>
                                 <div class="label @(c.Mark == "" ? "text-danger fw-semibold" : "")">@c.Label</div>
-                                <input class="form-control form-control-sm" style="width:90px" placeholder="date" value="@c.Date" />
+                                <input class="form-control form-control-sm" style="width:90px" name="check[@i].Date" maxlength="20" placeholder="date" value="@c.Date" readonly="@(!canEdit)" aria-label="Date for @c.Label" />
                             </div>
                         }
                         <div class="mt-3">
                             <label class="form-label">Remarks</label>
-                            <textarea class="form-control" rows="2"></textarea>
+                            <textarea class="form-control" rows="2" name="remarks" maxlength="500" readonly="@(!canEdit)">@Model.ChecklistRemarks</textarea>
                         </div>
                     </div>
                     <div class="card-footer bg-white d-flex align-items-center">
-                        <span class="small text-body-secondary">Checked by: Anely R. Villegas, ADAS III</span>
-                        @if (User.Can(Permissions.VouchersEncode))
+                        <span class="small text-body-secondary">@(string.IsNullOrWhiteSpace(school.BookkeeperName) ? "" : $"Checked by: {school.BookkeeperName}{(string.IsNullOrWhiteSpace(school.BookkeeperPosition) ? "" : ", " + school.BookkeeperPosition)}")</span>
+                        @if (canEdit)
                         {
                             <button class="btn btn-primary ms-auto"><i class="bi bi-save me-1"></i>Save checklist</button>
                         }
@@ -130,9 +141,15 @@
             <!-- HISTORY -->
             <div class="tab-pane fade" id="tab-log">
                 <div class="card"><ul class="list-group list-group-flush small">
-                    <li class="list-group-item"><b>avillegas</b> uploaded @(Model.DvNo).pdf <span class="text-body-secondary float-end">@Fmt.Date(Model.PaidDate) 3:41 PM</span></li>
-                    <li class="list-group-item"><b>avillegas</b> updated the checklist (@Model.DocsDone of @Model.Checklist.Count) <span class="text-body-secondary float-end">@Fmt.Date(Model.PaidDate) 3:38 PM</span></li>
-                    <li class="list-group-item"><b>avillegas</b> encoded the voucher <span class="text-body-secondary float-end">@Fmt.Date(Model.PaidDate) 3:30 PM</span></li>
+                    @foreach (var f in files.Files.OrderByDescending(x => x.UploadedAt))
+                    {
+                        <li class="list-group-item"><b>@(f.UploadedBy ?? "Someone")</b> uploaded @f.FileName <span class="text-body-secondary float-end">@f.UploadedAt.ToString("MM/dd/yyyy h:mm tt")</span></li>
+                    }
+                    @if (Model.UpdatedAt is { } changed)
+                    {
+                        <li class="list-group-item"><b>@(Model.UpdatedBy ?? "Someone")</b> last changed the voucher or its checklist <span class="text-body-secondary float-end">@changed.ToString("MM/dd/yyyy h:mm tt")</span></li>
+                    }
+                    <li class="list-group-item"><b>@(Model.EncodedBy ?? "Someone")</b> created the record <span class="text-body-secondary float-end">@Model.EncodedAt.ToString("MM/dd/yyyy h:mm tt")</span></li>
                 </ul></div>
             </div>
         </div>
@@ -150,10 +167,10 @@
                 <hr />
                 <div class="small text-body-secondary mb-1">Charged to cash advance</div>
                 <a class="fw-semibold text-decoration-none" asp-controller="CashAdvances" asp-action="Details" asp-route-id="@ca.Id">@ca.PayrollNo</a>
-                <div class="small">@ca.Dept · Batch @ca.BatchNo.ToString("00") · balance @Fmt.Peso(ca.Balance)</div>
+                <div class="small">@ca.Dept · @ca.FundName · Batch @ca.BatchNo.ToString("00") · balance @Fmt.Peso(ca.Balance)</div>
                 <hr />
                 <div class="small text-body-secondary mb-2">Supporting documents</div>
-                <div class="progress mb-1"><div class="progress-bar @(Model.DocsMissing == 0 ? "bg-success" : "bg-warning")" style="width:@(Model.DocsDone * 100 / Model.Checklist.Count)%"></div></div>
+                <div class="progress mb-1"><div class="progress-bar @(Model.DocsMissing == 0 ? "bg-success" : "bg-warning")" style="width:@(Model.Checklist.Count == 0 ? 0 : Model.DocsDone * 100 / Model.Checklist.Count)%"></div></div>
                 <div class="small">@Model.DocsDone of @Model.Checklist.Count accounted for</div>
             </div>
         </div>

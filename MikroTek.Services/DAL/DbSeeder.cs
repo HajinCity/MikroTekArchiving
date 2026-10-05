@@ -64,6 +64,22 @@ namespace MikroTek.Services.DAL
                     { Code = a.Code, Title = a.Title, Group = a.Group, CreatedAt = DateTime.Now }));
             }
 
+            // The school's own details for report headers. Signatories and bank accounts are filled in
+            // by the admin in Setup → School & Signatories.
+            if (!await db.SchoolProfiles.AnyAsync())
+            {
+                db.SchoolProfiles.Add(new SchoolProfiles
+                {
+                    SchoolName = "Leonardo National High School",
+                    Region = "Region IX, Zamboanga Peninsula",
+                    Division = "Division of Zamboanga del Sur",
+                    District = "Josefina District",
+                    Address = "Leonardo, Josefina, Zamboanga del Sur",
+                    FundCluster = "Regular",
+                    CreatedAt = DateTime.Now
+                });
+            }
+
             // The starting ticks of the Roles & Access page. Only added once: later changes are the admin's.
             if (!await db.RolePermissions.AnyAsync())
             {

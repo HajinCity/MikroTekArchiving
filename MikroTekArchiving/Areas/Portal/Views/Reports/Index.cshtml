@@ -1,6 +1,9 @@
+﻿@model ReportsPage
 @{
     ViewData["Title"] = "Liquidation Reports";
     ViewData["Crumb"] = "Reports";
+    var noAdvances = Model.CashAdvances.Count == 0;
+    var noDvs = Model.Vouchers.Count == 0;
 }
 <div class="row g-3">
     <div class="col-lg-4">
@@ -10,8 +13,11 @@
                     <div><div class="fw-bold">Cash Disbursements Register</div><div class="small text-body-secondary">Appendix 43 · per cash advance, with breakdown by UACS account and recapitulation.</div></div></div>
                 <form asp-action="Register" method="get">
                     <label class="form-label">Cash advance</label>
-                    <select class="form-select mb-3" name="id">@foreach (var ca in SampleData.CashAdvances) { <option value="@ca.Id">@ca.Dept · @ca.PayrollNo · @ca.Period</option> }</select>
-                    <button class="btn btn-primary w-100"><i class="bi bi-printer me-1"></i>Open for printing</button>
+                    <select class="form-select mb-3" name="id" disabled="@noAdvances">
+                        @if (noAdvances) { <option>No cash advances yet</option> }
+                        @foreach (var ca in Model.CashAdvances) { <option value="@ca.Id">@ca.Dept · @ca.PayrollNo · @ca.Period</option> }
+                    </select>
+                    <button class="btn btn-primary w-100" disabled="@noAdvances"><i class="bi bi-printer me-1"></i>Open for printing</button>
                 </form>
             </div>
         </div>
@@ -23,8 +29,11 @@
                     <div><div class="fw-bold">Alphalist of Payees</div><div class="small text-body-secondary">Payees from whom taxes were withheld (1% / 3% non-VAT, 1% / 5% VAT), with TIN.</div></div></div>
                 <form asp-action="Alphalist" method="get">
                     <label class="form-label">Cash advance</label>
-                    <select class="form-select mb-3" name="id">@foreach (var ca in SampleData.CashAdvances) { <option value="@ca.Id">@ca.Dept · @ca.PayrollNo · @ca.Period</option> }</select>
-                    <button class="btn btn-primary w-100"><i class="bi bi-printer me-1"></i>Open for printing</button>
+                    <select class="form-select mb-3" name="id" disabled="@noAdvances">
+                        @if (noAdvances) { <option>No cash advances yet</option> }
+                        @foreach (var ca in Model.CashAdvances) { <option value="@ca.Id">@ca.Dept · @ca.PayrollNo · @ca.Period</option> }
+                    </select>
+                    <button class="btn btn-primary w-100" disabled="@noAdvances"><i class="bi bi-printer me-1"></i>Open for printing</button>
                 </form>
             </div>
         </div>
@@ -36,8 +45,11 @@
                     <div><div class="fw-bold">DV Archive Record</div><div class="small text-body-secondary">One voucher's details, accounting entry and checklist cover sheet.</div></div></div>
                 <form asp-controller="Vouchers" asp-action="Print" method="get">
                     <label class="form-label">Disbursement voucher</label>
-                    <select class="form-select mb-3" name="id">@foreach (var v in SampleData.Vouchers) { <option value="@v.Id">@v.DvNo · @v.Payee</option> }</select>
-                    <button class="btn btn-primary w-100"><i class="bi bi-printer me-1"></i>Open for printing</button>
+                    <select class="form-select mb-3" name="id" disabled="@noDvs">
+                        @if (noDvs) { <option>No DVs yet</option> }
+                        @foreach (var v in Model.Vouchers) { <option value="@v.Id">@v.DvNo · @v.Payee</option> }
+                    </select>
+                    <button class="btn btn-primary w-100" disabled="@noDvs"><i class="bi bi-printer me-1"></i>Open for printing</button>
                 </form>
             </div>
         </div>

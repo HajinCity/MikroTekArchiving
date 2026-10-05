@@ -1,4 +1,4 @@
-﻿using MikroTek.Archiving.Areas.Portal.TemplateData;
+﻿using MikroTek.Services.DTO;
 using MikroTek.Domain;
 
 namespace MikroTek.Archiving.Areas.Portal.Models;
@@ -63,14 +63,14 @@ public record AmountRow(string Name, string? Code, decimal Amount);
 public class DashboardData
 {
     public required DashboardFilter Filter { get; init; }
-    public required List<DvRow> Vouchers { get; init; }
-    public required List<CashAdvanceRow> CashAdvances { get; init; }
+    public required List<DvDto> Vouchers { get; init; }
+    public required List<CashAdvanceDto> CashAdvances { get; init; }
     public required List<FundCard> Funds { get; init; }
     public required List<MonthRow> Months { get; init; }
     public required List<AmountRow> ByType { get; init; }
     public required List<AmountRow> ByAccount { get; init; }
 
-    public List<DvRow> Incomplete => Vouchers.Where(v => !v.IsComplete).ToList();
+    public List<DvDto> Incomplete => Vouchers.Where(v => !v.IsComplete).ToList();
     public decimal Gross => Vouchers.Sum(v => v.Gross);
     public decimal Taxes => Vouchers.Sum(v => v.Taxes);
     public decimal Net => Vouchers.Sum(v => v.Net);

@@ -101,6 +101,29 @@ namespace MikroTek.Services.CoreServices
             return ServiceResult.Ok();
         }
 
+        public async Task DeleteForOwnerAsync(FileOwner ownerType, long ownerId)
+        {
+            foreach (var f in await _files.GetByOwnerAsync(ownerType, ownerId))
+                await RemoveAsync(f);
+        }
+
+        public async Task<int> RemoveOrphansAsync()
+        {
+            var orphans = await _files.GetOrphansAsync();
+            foreach (var f in orphans)
+                await RemoveAsync(f);
+            if (orphans.Count > 0)
+                _logger.WriteLog(Level.Info, LogType.General, $"Removed {orphans.Count} uploaded file(s) whose record no longer exists.");
+            return orphans.Count;
+        }
+
+        private async Task RemoveAsync(ArchiveFiles f)
+        {
+            await _files.DeleteByIdAsync(f.Id);
+            var path = PathOf(f);
+            if (File.Exists(path)) File.Delete(path);
+        }
+
         // uploads/voucher/12/3f2a....pdf
         private string FolderFor(FileOwner ownerType, long ownerId) =>
             Path.Combine(_options.Folder, ownerType.ToString().ToLowerInvariant(), ownerId.ToString());

@@ -22,13 +22,24 @@ namespace MikroTek.Services
             services.AddScoped<FundBudgetsQueries>();
             services.AddScoped<RolePermissionsQueries>();
             services.AddScoped<UacsAccountsQueries>();
-            services.AddScoped<ArchiveFilesQueries>();       
+            services.AddScoped<ArchiveFilesQueries>();
+            services.AddScoped<PayeesQueries>();
+            services.AddScoped<ChecklistTemplatesQueries>();
+            services.AddScoped<SchoolProfilesQueries>();
+            services.AddScoped<CashAdvancesQueries>();
+            services.AddScoped<DisbursementVouchersQueries>();       
             services.AddScoped<IVouchers, VoucherServices>();
             services.AddScoped<IUsers, UserServices>();
             services.AddScoped<IFundBudgets, FundBudgetServices>();
             services.AddScoped<IRoles, RoleServices>();
             services.AddScoped<IUacsAccounts, UacsAccountServices>();
-            services.AddScoped<IArchiveFiles, ArchiveFileServices>();         
+            services.AddScoped<IArchiveFiles, ArchiveFileServices>();
+            services.AddScoped<IPayees, PayeeServices>();
+            services.AddScoped<IChecklistTemplates, ChecklistTemplateServices>();
+            services.AddScoped<ISchoolProfile, SchoolProfileServices>();
+            services.AddScoped<ArchiveLoader>();
+            services.AddScoped<ICashAdvances, CashAdvanceServices>();
+            services.AddScoped<IDisbursements, DisbursementServices>();         
             services.AddSingleton<IRouterService, FakeRouterService>();
 
             
@@ -44,6 +55,8 @@ namespace MikroTek.Services
             var db = scope.ServiceProvider.GetRequiredService<DB>();
             await db.Database.MigrateAsync();
             await DbSeeder.SeedAsync(db);
+            // Uploaded files left behind by records that no longer exist (for example test uploads).
+            await scope.ServiceProvider.GetRequiredService<IArchiveFiles>().RemoveOrphansAsync();
         }
     }
 }

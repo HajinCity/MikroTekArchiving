@@ -1,11 +1,12 @@
-﻿@model List<DvRow>
+﻿@model List<DvDto>
 @{
     ViewData["Title"] = "Disbursement Vouchers";
     ViewData["Crumb"] = "Disbursements";
-    string? q = Context.Request.Query["q"], dept = Context.Request.Query["dept"], status = Context.Request.Query["status"];
+    string? q = Context.Request.Query["q"], dept = Context.Request.Query["dept"], status = Context.Request.Query["status"], from = Context.Request.Query["from"];
+    var filtered = Context.Request.Query.Count > 0;
 
     var grid = DataGrid.For(Model)
-        .Text("DV No.", v => v.DvNo, href: v => Url.Action("Details", new { id = v.Id }), nowrap: true)
+        .Text("DV No.", v => v.Label, href: v => Url.Action("Details", new { id = v.Id }), nowrap: true)
         .Text("Dept", v => v.Dept, hideOnMobile: true)
         .Date("Date", v => v.Date)
         .Text("Payee", v => v.Payee)
@@ -15,9 +16,9 @@
         .Money("Net", v => v.Net, total: true)
         .Text("Check No.", v => v.CheckNo, hideOnMobile: true, css: "mono")
         .Text("Docs", v => $"{v.DocsDone}/{v.Checklist.Count}", hideOnMobile: true)
-        .Badge("Packet", v => v.IsComplete ? "Complete" : "Incomplete", v => v.IsComplete ? "green" : "orange")
+        .Badge("Packet", v => v.IsDraft ? "Draft" : v.IsComplete ? "Complete" : "Incomplete", v => v.IsDraft ? "gray" : v.IsComplete ? "green" : "orange")
         .Actions(v => $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Details", new { id = v.Id })}\" title=\"Open\"><i class=\"bi bi-eye\"></i></a> "
-                    + $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Print", new { id = v.Id })}\" title=\"Print record\"><i class=\"bi bi-printer\"></i></a>")
+                    + (v.IsDraft ? "" : $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Print", new { id = v.Id })}\" title=\"Print record\"><i class=\"bi bi-printer\"></i></a>"))
         .Build("dvGrid", pageSize: 10, exportName: "disbursement-vouchers", emptyText: "No vouchers match your search.");
 }
 <div class="page-actions">
@@ -49,11 +50,12 @@
                 <option value="">All</option>
                 <option value="complete" selected="@(status == "complete")">Complete</option>
                 <option value="incomplete" selected="@(status == "incomplete")">Incomplete</option>
+                <option value="draft" selected="@(status == "draft")">Draft (scan not yet encoded)</option>
             </select>
         </div>
         <div class="col-6 col-lg-2">
             <label class="form-label">Date from</label>
-            <input type="date" class="form-control" name="from" />
+            <input type="date" class="form-control" name="from" value="@from" />
         </div>
         <div class="col-6 col-lg-2 d-flex gap-2">
             <button class="btn btn-primary flex-fill"><i class="bi bi-funnel"></i> Filter</button>
@@ -62,6 +64,15 @@
     </div>
 </form>
 
-<ui-card title="DV archive" subtitle="Click a column header to sort · the totals follow your search" icon="bi-folder2-open" flush="true">
-    <partial name="UI/_DataGrid" model="grid" />
-</ui-card>
+@if (Model.Count == 0 && !filtered)
+{
+    <div class="card"><div class="card-body">
+        <partial name="UI/_EmptyState" model="@(new EmptyState("The archive is empty", "Record a cash advance first, then encode the DVs charged to it.", "bi-folder2-open"))" />
+    </div></div>
+}
+else
+{
+    <ui-card title="DV archive" subtitle="Click a column header to sort · the totals follow your search" icon="bi-folder2-open" flush="true">
+        <partial name="UI/_DataGrid" model="grid" />
+    </ui-card>
+}

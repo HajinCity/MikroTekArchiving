@@ -1,13 +1,14 @@
-@model CashAdvanceRow
+﻿@model CashAdvanceDto
 @{
     Layout = "_PrintLayout";
     ViewData["Title"] = $"Alphalist – {Model.PayrollNo}";
     ViewData["Landscape"] = true;
     var rows = Model.Vouchers.Where(v => v.Taxes > 0).OrderBy(v => v.DvNo).ToList();
+    var school = (SchoolProfileDto)ViewData["School"]!;
 }
 <div class="hdr">
-    Republic of the Philippines<br />Department of Education<br />Region IX, Zamboanga Peninsula<br />DIVISION OF ZAMBOANGA DEL SUR<br />
-    <b>@SampleData.School</b><br /><i>@(Model.Dept == "JHS" ? "JUNIOR HIGH SCHOOL" : "SENIOR HIGH SCHOOL")</i>
+    Republic of the Philippines<br />Department of Education<br />@school.Region<br />@((school.Division ?? "").ToUpperInvariant())<br />
+    <b>@((school.SchoolName ?? "").ToUpperInvariant())</b><br /><i>@Model.DeptName.ToUpperInvariant() SCHOOL</i>
     <div class="title">ALPHABETICAL LIST OF PAYEES FROM WHOM TAXES WERE WITHHELD</div>
     <i>For the month of @Model.Period.ToUpperInvariant()</i>
 </div>
@@ -37,4 +38,4 @@
     </tbody>
 </table>
 
-<div style="margin-top:30px">Prepared by:<br /><div class="sig" style="margin-left:180px"><div class="name">Anely R. Villegas</div>Senior Bookkeeper</div></div>
+<div style="margin-top:30px">Prepared by:<br /><div class="sig" style="margin-left:180px"><div class="name">@(string.IsNullOrWhiteSpace(school.BookkeeperName) ? "\u00a0" : school.BookkeeperName)</div>@school.BookkeeperPosition</div></div>

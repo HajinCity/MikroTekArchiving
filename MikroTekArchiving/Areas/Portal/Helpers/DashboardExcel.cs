@@ -9,10 +9,10 @@ public static class DashboardExcel
     private const string Money = "#,##0.00;[Red](#,##0.00);\"-\"";
     private const string Date = "mm/dd/yyyy";
 
-    public static byte[] Create(DashboardData d, string exportedBy)
+    public static byte[] Create(DashboardData d, string exportedBy, string schoolName)
     {
         using var wb = new XLWorkbook();
-        Summary(wb, d, exportedBy);
+        Summary(wb, d, exportedBy, schoolName);
         Vouchers(wb, d);
         ByMonth(wb, d);
         Amounts(wb, "By Type", "Type of spending", null, d.ByType.Where(x => x.Amount != 0).ToList());
@@ -25,12 +25,12 @@ public static class DashboardExcel
         return ms.ToArray();
     }
 
-    private static void Summary(XLWorkbook wb, DashboardData d, string exportedBy)
+    private static void Summary(XLWorkbook wb, DashboardData d, string exportedBy, string schoolName)
     {
         var ws = wb.AddWorksheet("Summary");
         ws.Cell("A1").Value = "Disbursement Archive — Dashboard";
         ws.Cell("A1").Style.Font.SetBold().Font.SetFontSize(14);
-        ws.Cell("A2").Value = "Leonardo National High School";
+        ws.Cell("A2").Value = schoolName;
 
         var r = 4;
         void Line(string label, XLCellValue value, string? format = null)
@@ -80,17 +80,15 @@ public static class DashboardExcel
         var ws = wb.AddWorksheet("DVs");
         Header(ws, 1, "DV No.", "DV Date", "Department", "Fund", "Cash Advance", "Transaction Type", "Payee", "TIN",
             "Particulars", "Gross", "Tax 1%", "Tax 3%", "Net Paid", "Mode", "Check No.", "Date Paid", "Packet", "Docs Missing");
-        var advances = TemplateData.SampleData.CashAdvances.ToDictionary(c => c.Id);
         var r = 1;
         foreach (var v in d.Vouchers)
         {
             r++;
-            advances.TryGetValue(v.CashAdvanceId, out var ca);
             ws.Cell(r, 1).Value = v.DvNo;
             ws.Cell(r, 2).Value = v.Date;
             ws.Cell(r, 3).Value = v.Dept;
-            ws.Cell(r, 4).Value = ca?.FundName ?? "";
-            ws.Cell(r, 5).Value = ca?.PayrollNo ?? "";
+            ws.Cell(r, 4).Value = v.Fund == MikroTek.Domain.FundType.AnnualBudget ? "Annual Budget" : "Special Funds";
+            ws.Cell(r, 5).Value = v.CashAdvanceNo;
             ws.Cell(r, 6).Value = v.Type;
             ws.Cell(r, 7).Value = v.Payee;
             ws.Cell(r, 8).Value = v.Tin;

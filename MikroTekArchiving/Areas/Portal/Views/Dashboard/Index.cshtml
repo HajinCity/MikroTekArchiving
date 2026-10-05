@@ -1,5 +1,4 @@
-﻿@using MikroTek.Archiving.Areas.Portal.Models
-@model DashboardData
+﻿@model DashboardData
 @{
     ViewData["Title"] = "Dashboard";
     var f = Model.Filter;
@@ -106,7 +105,7 @@
     <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("DVs archived", dvs.Count.ToString(), "bi-folder2-open", "blue", Hint: f.RangeText, Href: Url.Action("Index", "Vouchers", new { dept = f.Dept })))" /></div>
     <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Total disbursed (net)", Fmt.Peso(Model.Net), "bi-cash-coin", "aqua", Hint: "Gross " + Fmt.Peso(Model.Gross)))" /></div>
     <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Taxes withheld", Fmt.Peso(Model.Taxes), "bi-receipt", "orange", Hint: "To be remitted to BIR", Href: Url.Action("Index", "Reports")))" /></div>
-    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Incomplete DV packets", incomplete.Count.ToString(), "bi-exclamation-triangle", "red", Hint: "Missing supporting documents", Href: Url.Action("Index", "Vouchers", new { status = "incomplete", dept = f.Dept })))" /></div>
+    <div class="col-sm-6 col-xl-3"><partial name="UI/_StatCard" model="@(new StatCard("Incomplete DV packets", incomplete.Count.ToString(), "bi-exclamation-triangle", "red", Hint: "Missing documents or no scan", Href: Url.Action("Index", "Vouchers", new { status = "incomplete", dept = f.Dept })))" /></div>
 </div>
 
 @if (dvs.Count == 0)
@@ -127,6 +126,10 @@ else
     <div class="col-xl-7">
         <ui-card title="Cash advances" subtitle="Utilization to date" icon="bi-cash-stack" class="h-100">
             <ui-card-tools><a asp-controller="CashAdvances" asp-action="Index">View all</a></ui-card-tools>
+            @if (Model.CashAdvances.Count == 0)
+            {
+                <partial name="UI/_EmptyState" model="@(new EmptyState("No cash advances yet", "They appear here once the first School MOOE Slip is recorded.", "bi-cash-stack"))" />
+            }
             @foreach (var ca in Model.CashAdvances)
             {
                 <div class="mb-4">
@@ -134,9 +137,9 @@ else
                         <span class="dept dept-@ca.Dept">@ca.Dept</span>
                         <a class="fw-semibold text-decoration-none" asp-controller="CashAdvances" asp-action="Details" asp-route-id="@ca.Id">@ca.PayrollNo</a>
                         <span class="text-body-secondary small d-none d-sm-inline">· @ca.FundName · Batch @ca.BatchNo.ToString("00") · @ca.Period</span>
-                        <span class="ui-pill @(ca.Status == "Open" ? "tone-blue" : "tone-gray") ms-auto">@ca.Status</span>
+                        <span class="ui-pill @(ca.IsOpen ? "tone-blue" : "tone-gray") ms-auto">@ca.Status</span>
                     </div>
-                    <partial name="UI/_Meter" model="@(new Meter(null, ca.Amount, [new("Spent", ca.Spent, "s1"), new("Balance", ca.Balance, "track")]))" />
+                    <partial name="UI/_Meter" model="@(new Meter(null, ca.Amount, [new("Spent", ca.Spent, "s1"), new("Balance", Math.Max(ca.Balance, 0), "track")]))" />
                 </div>
             }
         </ui-card>
@@ -151,10 +154,10 @@ else
                         <div class="d-flex align-items-center gap-2">
                             <span class="dept dept-@v.Dept">@v.Dept</span>
                             <span class="fw-semibold">@v.DvNo</span>
-                            <span class="ui-pill tone-orange ms-auto">@v.DocsMissing missing</span>
+                            <span class="ui-pill tone-orange ms-auto">@(v.DocsMissing > 0 ? $"{v.DocsMissing} missing" : "no scan")</span>
                         </div>
                         <div class="small text-body-secondary text-truncate mt-1">@v.Payee · @Fmt.Peso(v.Net)</div>
-                        <div class="small text-danger text-truncate">@string.Join(", ", v.Checklist.Where(c => c.Mark == "").Select(c => c.Label).Take(2))@(v.DocsMissing > 2 ? "…" : "")</div>
+                        <div class="small text-danger text-truncate">@(v.DocsMissing > 0 ? string.Join(", ", v.Checklist.Where(c => c.Mark == "").Select(c => c.Label).Take(2)) + (v.DocsMissing > 2 ? "…" : "") : "The scanned packet is not attached yet")</div>
                     </a>
                 }
                 @if (incomplete.Count == 0)

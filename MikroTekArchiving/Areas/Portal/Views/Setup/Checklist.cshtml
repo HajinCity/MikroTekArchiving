@@ -1,26 +1,82 @@
-@model ChecklistTemplateRow
-@{ ViewData["Title"] = Model.Name; ViewData["Crumb"] = "Setup / Checklist Templates"; }
-<form class="card" asp-action="Save" asp-route-back="Checklists" method="post" style="max-width:900px">
+﻿@model ChecklistTemplateDto
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "New Checklist Type" : Model.Name;
+    ViewData["Crumb"] = "Setup / Checklist Templates";
+}
+@if (ViewData["Error"] is string error)
+{
+    <div class="alert alert-danger d-flex align-items-center gap-2" style="max-width:900px" role="alert"><i class="bi bi-exclamation-octagon-fill"></i><div><b>Not saved.</b> @error</div></div>
+}
+<form class="card" asp-action="SaveChecklist" method="post" style="max-width:900px" id="checklistForm">
+    <input type="hidden" name="Id" value="@Model.Id" />
     <div class="card-header">Checklist type</div>
     <div class="card-body">
         <div class="row g-3 mb-3">
-            <div class="col-md-8"><label class="form-label">Name (printed as the cover sheet title)</label><input class="form-control" value="@Model.Name" /></div>
-            <div class="col-md-4"><label class="form-label">Status</label><select class="form-select"><option>Active</option><option>Inactive</option></select></div>
+            <div class="col-md-8"><label class="form-label" for="tName">Name (printed as the cover sheet title)</label><input class="form-control" id="tName" name="Name" value="@Model.Name" maxlength="200" placeholder="e.g. Job Order" required /></div>
+            <div class="col-md-4"><label class="form-label" for="tActive">Status</label>
+                <select class="form-select" id="tActive" name="IsActive">
+                    <option value="true" selected="@Model.IsActive">In use</option>
+                    <option value="false" selected="@(!Model.IsActive)">Not in use</option>
+                </select></div>
         </div>
-        <label class="form-label">Items <span class="text-body-secondary fw-normal">— in the same order as the paper cover sheet</span></label>
+        <label class="form-label">Documents <span class="text-body-secondary fw-normal">— in the same order as the paper cover sheet</span></label>
         <ul class="list-group mb-2" id="items">
             @foreach (var i in Model.Items)
             {
                 <li class="list-group-item d-flex align-items-center gap-2">
-                    <i class="bi bi-grip-vertical text-body-secondary"></i>
-                    <input class="form-control form-control-sm border-0" value="@i" />
-                    <button type="button" class="btn btn-sm btn-light" title="Move up" onclick="const li=this.closest('li');li.previousElementSibling?.before(li)"><i class="bi bi-arrow-up"></i></button>
-                    <button type="button" class="btn btn-sm btn-light" title="Remove" onclick="this.closest('li').remove()"><i class="bi bi-trash"></i></button>
+                    <span class="text-body-secondary small item-no" style="width:1.6rem"></span>
+                    <input class="form-control form-control-sm" name="Items" value="@i" maxlength="300" placeholder="Document name" aria-label="Document name" />
+                    <button type="button" class="btn btn-sm btn-light" title="Move up" data-move="up"><i class="bi bi-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-light" title="Move down" data-move="down"><i class="bi bi-arrow-down"></i></button>
+                    <button type="button" class="btn btn-sm btn-light" title="Remove" data-remove><i class="bi bi-trash"></i></button>
                 </li>
             }
         </ul>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('items').insertAdjacentHTML('beforeend', `<li class='list-group-item d-flex align-items-center gap-2'><i class='bi bi-grip-vertical text-body-secondary'></i><input class='form-control form-control-sm border-0' placeholder='New document'><button type='button' class='btn btn-sm btn-light' onclick='this.closest(&quot;li&quot;).remove()'><i class='bi bi-trash'></i></button></li>`)"><i class="bi bi-plus-lg"></i> Add item</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="addItem"><i class="bi bi-plus-lg"></i> Add document</button>
         <div class="alert alert-light border small mt-3 mb-0"><i class="bi bi-info-circle"></i> Changing a template only affects DVs encoded after the change. Existing DVs keep the checklist they were archived with.</div>
     </div>
     <div class="card-footer bg-white d-flex gap-2 justify-content-end"><a class="btn btn-light" asp-action="Checklists">Cancel</a><button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save template</button></div>
 </form>
+@if (!isNew)
+{
+    <form asp-action="DeleteChecklist" asp-route-id="@Model.Id" method="post" class="mt-3 text-end" style="max-width:900px">
+        <button class="btn btn-sm btn-outline-danger" data-ui-confirm="Delete the checklist type &quot;@Model.Name&quot;? DVs already encoded keep their checklist."><i class="bi bi-trash me-1"></i>Delete this checklist type</button>
+    </form>
+}
+
+<template id="itemTpl">
+    <li class="list-group-item d-flex align-items-center gap-2">
+        <span class="text-body-secondary small item-no" style="width:1.6rem"></span>
+        <input class="form-control form-control-sm" name="Items" maxlength="300" placeholder="Document name" aria-label="Document name" />
+        <button type="button" class="btn btn-sm btn-light" title="Move up" data-move="up"><i class="bi bi-arrow-up"></i></button>
+        <button type="button" class="btn btn-sm btn-light" title="Move down" data-move="down"><i class="bi bi-arrow-down"></i></button>
+        <button type="button" class="btn btn-sm btn-light" title="Remove" data-remove><i class="bi bi-trash"></i></button>
+    </li>
+</template>
+
+@section Scripts {
+<script>
+(function () {
+    const list = document.getElementById("items");
+    const number = () => list.querySelectorAll(".item-no").forEach((el, i) => el.textContent = (i + 1) + ".");
+    function add(focus) {
+        list.append(document.getElementById("itemTpl").content.cloneNode(true));
+        number();
+        if (focus) list.lastElementChild.querySelector("input").focus();
+    }
+    document.getElementById("addItem").addEventListener("click", () => add(true));
+    list.addEventListener("click", e => {
+        const li = e.target.closest("li"); if (!li) return;
+        const move = e.target.closest("[data-move]");
+        if (move?.dataset.move === "up" && li.previousElementSibling) li.previousElementSibling.before(li);
+        if (move?.dataset.move === "down" && li.nextElementSibling) li.nextElementSibling.after(li);
+        if (e.target.closest("[data-remove]")) { li.remove(); if (!list.children.length) add(false); }
+        number();
+    });
+    // Enter in a document box adds the next one instead of saving a half-finished list.
+    list.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("input")) { e.preventDefault(); add(true); } });
+    number();
+})();
+</script>
+}

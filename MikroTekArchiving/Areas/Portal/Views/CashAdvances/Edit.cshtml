@@ -1,0 +1,105 @@
+﻿@model CashAdvanceForm
+@{
+    var v = Model.Values;
+    ViewData["Title"] = Model.IsNew ? "Record Cash Advance" : "Edit Cash Advance";
+    ViewData["Crumb"] = "Disbursements / Cash Advances";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+}
+<div class="row justify-content-center">
+    <div class="col-xl-8">
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-octagon-fill"></i><div>@Model.Error</div></div>
+        }
+        <form asp-action="Save" method="post" enctype="multipart/form-data" class="card">
+            <input type="hidden" name="Id" value="@v.Id" />
+            <div class="card-header">School MOOE Slip details <span class="sub">— copy from the slip issued by the Division Cash Unit</span></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label" for="caDept">Department</label>
+                        <select class="form-select" id="caDept" name="Dept">
+                            <option value="JHS" selected="@(v.Dept == Department.JHS)">JHS</option>
+                            <option value="SHS" selected="@(v.Dept == Department.SHS)">SHS</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caFund">Fund</label>
+                        <select class="form-select" id="caFund" name="Fund">
+                            <option value="AnnualBudget" selected="@(v.Fund == FundType.AnnualBudget)">Annual Budget</option>
+                            <option value="SpecialFunds" selected="@(v.Fund == FundType.SpecialFunds)">Special Funds</option>
+                        </select>
+                        <div class="form-text" id="caFundHint"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caBatch">Batch No.</label>
+                        <input class="form-control" id="caBatch" name="BatchNo" type="number" min="1" max="99" value="@v.BatchNo" required />
+                        <div class="form-text">Used in the DV numbers, e.g. <span id="caBatchHint"></span></div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caCluster">Fund Cluster</label>
+                        <input class="form-control" id="caCluster" name="FundCluster" value="@v.FundCluster" maxlength="50" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caPayroll">Payroll No.</label>
+                        <input class="form-control" id="caPayroll" name="PayrollNo" value="@v.PayrollNo" maxlength="50" placeholder="OE-00-00-0000" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caAda">ADA No.</label>
+                        <input class="form-control mono" id="caAda" name="AdaNo" value="@v.AdaNo" maxlength="50" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="caDate">Date</label>
+                        <input class="form-control" id="caDate" name="Date" type="date" value="@v.Date?.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="caAmount">Amount</label>
+                        <div class="input-group"><span class="input-group-text">₱</span><input class="form-control text-end" id="caAmount" name="Amount" inputmode="decimal" placeholder="0.00" value="@v.Amount?.ToString("0.00", inv)" required /></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="caPeriod">Period Covered</label>
+                        <input class="form-control" id="caPeriod" name="Period" value="@v.Period" maxlength="100" placeholder="e.g. September – October @DateTime.Today.Year" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caOfficer">Accountable Officer</label>
+                        <input class="form-control" id="caOfficer" name="Officer" value="@v.Officer" maxlength="150" placeholder="Name" />
+                        <input class="form-control form-control-sm mt-1" name="OfficerPosition" value="@v.OfficerPosition" maxlength="150" placeholder="Position, e.g. School Principal II" aria-label="Accountable officer's position" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caVerified">Verified by (Cash Unit)</label>
+                        <input class="form-control" id="caVerified" name="VerifiedBy" value="@v.VerifiedBy" maxlength="150" placeholder="Name" />
+                        <input class="form-control form-control-sm mt-1" name="VerifiedByPosition" value="@v.VerifiedByPosition" maxlength="150" placeholder="Position" aria-label="Verifier's position" />
+                    </div>
+                    @if (Model.IsNew)
+                    {
+                        <div class="col-12">
+                            <label class="form-label" for="caFile">Scanned MOOE Slip <span class="text-body-secondary fw-normal">(optional — can also be added later)</span></label>
+                            <input class="form-control" id="caFile" type="file" name="files" multiple accept=".pdf,.jpg,.jpeg,.png" />
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="card-footer bg-white d-flex gap-2 justify-content-end">
+                @if (Model.IsNew) { <a class="btn btn-light" asp-action="Index">Cancel</a> }
+                else { <a class="btn btn-light" asp-action="Details" asp-route-id="@v.Id">Cancel</a> }
+                <button class="btn btn-primary"><i class="bi bi-save me-1"></i>@(Model.IsNew ? "Save Cash Advance" : "Save changes")</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const dept = $("caDept"), fund = $("caFund"), batch = $("caBatch"), date = $("caDate");
+    function show() {
+        $("caFundHint").textContent = "Charged to the " + dept.value + " " + fund.options[fund.selectedIndex].text;
+        const year = (date.value || "").slice(0, 4) || new Date().getFullYear();
+        $("caBatchHint").textContent = dept.value + year + "-" + String(batch.value || 0).padStart(2, "0") + "-001";
+    }
+    [dept, fund, batch, date].forEach(el => el.addEventListener("input", show));
+    show();
+})();
+</script>
+}

@@ -18,9 +18,10 @@ namespace MikroTek.Services.DTO
                                   bool ActiveStatus, string? Password);
 
     /// <summary>Result of a save: OK, or the message to show the user.</summary>
-    public record ServiceResult(bool Success, string? Error = null)
+    /// <param name="Id">The Id of the row that was added or changed, when the caller needs it.</param>
+    public record ServiceResult(bool Success, string? Error = null, long Id = 0)
     {
-        public static ServiceResult Ok() => new(true);
+        public static ServiceResult Ok(long id = 0) => new(true, Id: id);
         public static ServiceResult Fail(string error) => new(false, error);
     }
 }

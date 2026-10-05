@@ -1,14 +1,16 @@
-@model DvRow
+﻿@model DvDto
 @{
     Layout = "_PrintLayout";
     ViewData["Title"] = $"Archive Record – {Model.DvNo}";
-    var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+    var ca = (CashAdvanceDto)ViewData["CashAdvance"]!;
+    var school = (SchoolProfileDto)ViewData["School"]!;
+    var place = string.Join(" · ", new[] { school.Region, school.Division, school.District }.Where(x => !string.IsNullOrWhiteSpace(x)));
 }
 <div class="hdr">
     Republic of the Philippines<br />
     <b>DEPARTMENT OF EDUCATION</b><br />
-    Region IX, Zamboanga Peninsula · Division of Zamboanga del Sur · Josefina District<br />
-    <b>@SampleData.School</b> — @(Model.Dept == "JHS" ? "Junior High School" : "Senior High School")
+    @place<br />
+    <b>@((school.SchoolName ?? "").ToUpperInvariant())</b> — @(Model.Dept == "JHS" ? "Junior High School" : "Senior High School")
     <div class="title">DISBURSEMENT VOUCHER — ARCHIVE RECORD</div>
 </div>
 
@@ -16,8 +18,8 @@
     <tr><td style="width:18%">DV No.:</td><td class="bold" style="width:32%"><span class="sticky-note">@Model.DvNo</span></td>
         <td style="width:18%">DV Date:</td><td>@Fmt.LongDate(Model.Date)</td></tr>
     <tr><td>Payee:</td><td class="bold">@Model.Payee</td><td>TIN/Employee No.:</td><td>@Model.Tin</td></tr>
-    <tr><td>Address:</td><td>@Model.Address</td><td>Fund Cluster:</td><td>Regular · MOOE</td></tr>
-    <tr><td>Cash advance:</td><td>@ca.PayrollNo (ADA @ca.AdaNo)</td><td>Check/ADA No.:</td><td>@Model.CheckNo · paid @Fmt.Date(Model.PaidDate)</td></tr>
+    <tr><td>Address:</td><td>@Model.Address</td><td>Fund Cluster:</td><td>@string.Join(" · ", new[] { Model.FundCluster, Model.MfoPap }.Where(x => x.Length > 0))</td></tr>
+    <tr><td>Cash advance:</td><td>@ca.PayrollNo (ADA @ca.AdaNo)</td><td>Check/ADA No.:</td><td>@Model.CheckNo@(Model.PaidDate is null ? "" : " · paid " + Fmt.Date(Model.PaidDate))</td></tr>
     <tr><td>Particulars:</td><td colspan="3">@Model.Particulars</td></tr>
 </table>
 
@@ -49,6 +51,6 @@
 <p class="small" style="margin-top:10px">Status: <b>@(Model.IsComplete ? "COMPLETE" : $"INCOMPLETE — {Model.DocsMissing} document(s) missing")</b></p>
 
 <div style="display:flex; justify-content:space-between; margin-top:24px">
-    <div>Checked by:<br /><div class="sig"><div class="name">Anely R. Villegas</div>ADAS III</div></div>
+    <div>Checked by:<br /><div class="sig"><div class="name">@(string.IsNullOrWhiteSpace(school.BookkeeperName) ? " " : school.BookkeeperName)</div>@school.BookkeeperPosition</div></div>
     <div class="tiny right" style="align-self:flex-end">Printed from the Disbursement Archiving Portal · @DateTime.Now.ToString("MM/dd/yyyy h:mm tt")</div>
 </div>

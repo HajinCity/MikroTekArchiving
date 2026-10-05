@@ -19,5 +19,11 @@ namespace MikroTek.Services.Interface
 
         /// <summary>Removes the file from its record and from the server.</summary>
         Task<ServiceResult> DeleteAsync(long id, long byUserId);
+
+        /// <summary>Removes every file of one voucher or cash advance (used when that record is deleted).</summary>
+        Task DeleteForOwnerAsync(FileOwner ownerType, long ownerId);
+
+        /// <summary>Removes files whose voucher or cash advance no longer exists. Returns how many were removed.</summary>
+        Task<int> RemoveOrphansAsync();
     }
 }

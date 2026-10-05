@@ -1,10 +1,23 @@
+﻿@model UploadPage
 @{
     ViewData["Title"] = "Upload Scanned DV";
     ViewData["Crumb"] = "Disbursements / New DV";
-    var scan = SampleData.Scan;
+    var open = Model.CashAdvances.Where(c => c.IsOpen).ToList();
+    var selected = open.FirstOrDefault(c => c.Id == Model.SelectedCashAdvanceId)?.Id ?? open.FirstOrDefault()?.Id;
 }
 <div class="row g-3">
     <div class="col-xl-8">
+        @if (open.Count == 0)
+        {
+            <div class="card"><div class="card-body">
+                <partial name="UI/_EmptyState" model="@(new EmptyState(Model.CashAdvances.Count == 0 ? "Record a cash advance first" : "No open cash advance",
+                    Model.CashAdvances.Count == 0 ? "Every DV is charged to a cash advance (School MOOE Slip). Record it, then come back to upload the scan."
+                                                  : "All cash advances are marked as liquidated. Record a new one, or reopen one from its page.",
+                    "bi-cash-stack", User.Can(Permissions.CashAdvancesEncode) ? "Record Cash Advance" : null, Url.Action("Create", "CashAdvances")))" />
+            </div></div>
+        }
+        else
+        {
         <form asp-action="Upload" method="post" enctype="multipart/form-data" class="card" id="uploadForm">
             <div class="card-body">
                 <label class="dropzone d-block upload-drop" for="scanFile" id="drop">
@@ -13,32 +26,32 @@
                     <div class="mb-3">or click to choose a file — one PDF of the whole packet, or photos of each page</div>
                     <input type="file" id="scanFile" name="files" class="d-none" multiple accept=".pdf,.jpg,.jpeg,.png" />
                     <span class="btn btn-primary"><i class="bi bi-folder2-open me-1"></i>Choose file</span>
-                    <div class="small mt-3">PDF, JPG or PNG · up to 100 MB · the cover checklist page first, then the DV</div>
+                    <div class="small mt-3">PDF, JPG or PNG · up to 100 MB each</div>
                 </label>
                 <div id="picked" class="mt-3"></div>
 
                 <div class="row g-3 mt-1">
                     <div class="col-md-7">
-                        <label class="form-label">Charge to cash advance</label>
-                        <select class="form-select" name="CashAdvanceId">
-                            @foreach (var ca in SampleData.CashAdvances.Where(c => c.Status == "Open")) { <option value="@ca.Id">@ca.Dept · @ca.PayrollNo · balance @Fmt.Peso(ca.Balance)</option> }
-                            @foreach (var ca in SampleData.CashAdvances.Where(c => c.Status != "Open")) { <option value="@ca.Id">@ca.Dept · @ca.PayrollNo (@ca.Status)</option> }
+                        <label class="form-label" for="upCa">Charge to cash advance</label>
+                        <select class="form-select" name="cashAdvanceId" id="upCa">
+                            @foreach (var ca in open) { <option value="@ca.Id" selected="@(ca.Id == selected)">@ca.Dept · @ca.PayrollNo · balance @Fmt.Peso(ca.Balance)</option> }
                         </select>
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label">Transaction type</label>
-                        <select class="form-select" name="Type">
-                            <option value="">Detect from the cover sheet</option>
-                            @foreach (var t in SampleData.Templates) { <option value="@t.Id">@t.Name</option> }
+                        <label class="form-label" for="upType">Transaction type</label>
+                        <select class="form-select" name="type" id="upType">
+                            <option value="">Choose later</option>
+                            @foreach (var t in Model.Templates) { <option value="@t.Id">@t.Name</option> }
                         </select>
                     </div>
                 </div>
             </div>
             <div class="card-footer bg-white d-flex align-items-center gap-2">
-                <span class="small text-body-secondary"><i class="bi bi-shield-lock me-1"></i>Read on this computer — the scan never leaves the school.</span>
-                <button class="btn btn-primary ms-auto" id="readBtn"><i class="bi bi-magic me-1"></i>Upload &amp; read scan</button>
+                <span class="small text-body-secondary"><i class="bi bi-shield-lock me-1"></i>Kept on the school's server — the scan never leaves the school.</span>
+                <button class="btn btn-primary ms-auto" id="readBtn" disabled><i class="bi bi-cloud-arrow-up me-1"></i>Upload &amp; encode</button>
             </div>
         </form>
+        }
     </div>
 
     <div class="col-xl-4">
@@ -46,19 +59,26 @@
             <div class="card-header">How it works</div>
             <div class="card-body small">
                 <div class="d-flex gap-2 mb-3"><span class="step">1</span><div><b>Upload</b> the scanned packet. A <b>draft DV</b> is created right away with the file attached.</div></div>
-                <div class="d-flex gap-2 mb-3"><span class="step">2</span><div>The system <b>reads the typed text</b>: transaction type, particulars, amounts, UACS codes, bank, and which page is which document.</div></div>
-                <div class="d-flex gap-2"><span class="step">3</span><div>You <b>review side by side</b> with the scan, type in the handwritten parts (DV no., dates, check no.), then <b>Confirm &amp; Archive</b>.</div></div>
+                <div class="d-flex gap-2 mb-3"><span class="step">2</span><div>The encoding form opens with <b>the scan beside it</b>. Type the DV no., payee, amounts, check no. and tick the checklist.</div></div>
+                <div class="d-flex gap-2"><span class="step">3</span><div>Press <b>Save to archive</b>. Until then the draft is not counted in any total or report.</div></div>
             </div>
         </div>
         <div class="card">
-            <div class="card-header d-flex">Drafts awaiting review <span class="badge text-bg-warning ms-auto">1</span></div>
+            <div class="card-header d-flex">Drafts waiting to be encoded <span class="badge @(Model.Drafts.Count > 0 ? "text-bg-warning" : "text-bg-light") ms-auto">@Model.Drafts.Count</span></div>
             <div class="list-group list-group-flush">
-                <a class="list-group-item list-group-item-action" asp-action="Review" asp-route-id="@scan.DraftId">
-                    <div class="d-flex align-items-center gap-2"><i class="bi bi-file-earmark-pdf text-danger fs-5"></i>
-                        <div class="flex-fill"><div class="fw-semibold">@scan.FileName</div>
-                            <div class="small text-body-secondary">@scan.Pages pages · @scan.DetectedType · @scan.UploadedAt.ToString("MMM d, h:mm tt")</div></div>
-                        <span class="badge-status st-incomplete">Review</span></div>
-                </a>
+                @foreach (var d in Model.Drafts)
+                {
+                    <a class="list-group-item list-group-item-action" asp-action="Edit" asp-route-id="@d.Id">
+                        <div class="d-flex align-items-center gap-2"><i class="bi bi-file-earmark-pdf text-danger fs-5"></i>
+                            <div class="flex-fill"><div class="fw-semibold">@d.Label · @d.Dept · @d.CashAdvanceNo</div>
+                                <div class="small text-body-secondary">@d.Attachments file(s)@(d.Type.Length > 0 ? " · " + d.Type : "") · uploaded @d.EncodedAt.ToString("MMM d, h:mm tt")@(d.EncodedBy is null ? "" : " by " + d.EncodedBy)</div></div>
+                            <span class="badge-status st-incomplete">Encode</span></div>
+                    </a>
+                }
+                @if (Model.Drafts.Count == 0)
+                {
+                    <div class="list-group-item py-4 text-center text-body-secondary small"><i class="bi bi-check2-circle text-success"></i> No drafts. Every uploaded scan has been encoded.</div>
+                }
             </div>
         </div>
         <div class="text-center mt-3 small"><a asp-action="Create"><i class="bi bi-keyboard me-1"></i>No scan yet? Encode manually</a></div>
@@ -67,19 +87,27 @@
 
 @section Scripts {
 <script>
-    const input = document.getElementById("scanFile"), drop = document.getElementById("drop"), picked = document.getElementById("picked");
+(function () {
+    const input = document.getElementById("scanFile"); if (!input) return;
+    const drop = document.getElementById("drop"), picked = document.getElementById("picked"), btn = document.getElementById("readBtn");
     function show(files) {
-        picked.innerHTML = [...files].map(f => `<div class="file-row"><i class="bi ${f.type.includes("pdf") ? "bi-file-earmark-pdf" : "bi-file-earmark-image"} ficon"></i>
-            <div class="flex-fill"><div class="fw-semibold">${f.name}</div><div class="small text-body-secondary">${(f.size / 1048576).toFixed(1)} MB</div></div>
-            <span class="badge-status st-open">Ready</span></div>`).join("");
+        picked.replaceChildren(...[...files].map(f => {
+            const row = document.createElement("div"); row.className = "file-row";
+            row.innerHTML = `<i class="bi ${f.type.includes("pdf") ? "bi-file-earmark-pdf" : "bi-file-earmark-image"} ficon"></i>
+                <div class="flex-fill"><div class="fw-semibold file-name"></div><div class="small text-body-secondary">${(f.size / 1048576).toFixed(1)} MB</div></div>
+                <span class="badge-status st-open">Ready</span>`;
+            row.querySelector(".file-name").textContent = f.name;
+            return row;
+        }));
+        btn.disabled = files.length === 0;
     }
     input.addEventListener("change", () => show(input.files));
     ["dragover", "dragenter"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
     ["dragleave", "drop"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove("over"); }));
     drop.addEventListener("drop", ev => { input.files = ev.dataTransfer.files; show(input.files); });
     document.getElementById("uploadForm").addEventListener("submit", () => {
-        const b = document.getElementById("readBtn");
-        b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Reading pages…';
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading…';
     });
+})();
 </script>
 }

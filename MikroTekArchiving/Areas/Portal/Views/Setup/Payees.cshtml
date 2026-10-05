@@ -1,30 +1,76 @@
-@model List<PayeeRow>
+﻿@model List<PayeeDto>
 @{
     ViewData["Title"] = "Payees"; ViewData["Crumb"] = "Setup";
+    string A(string? text) => System.Net.WebUtility.HtmlEncode(text ?? "");
     var grid = DataGrid.For(Model)
         .Text("Name", p => p.Name, css: "fw-semibold")
         .Text("TIN", p => p.Tin, css: "mono", nowrap: true)
         .Text("Address", p => p.Address, hideOnMobile: true)
-        .Text("Kind", p => p.Kind, hideOnMobile: true)
-        .Badge("Tax type", p => p.TaxType, p => p.TaxType == "VAT" ? "violet" : p.TaxType == "Non-VAT" ? "blue" : "gray")
+        .Text("Kind", p => p.KindText, hideOnMobile: true)
+        .Badge("Tax type", p => p.TaxTypeText, p => p.TaxType == PayeeTaxType.Vat ? "violet" : p.TaxType == PayeeTaxType.NonVat ? "blue" : "gray")
         .Number("DVs", p => p.DvCount)
-        .Actions(p => $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Index", "Vouchers", new { q = p.Name })}\" title=\"View DVs\"><i class=\"bi bi-folder2-open\"></i></a> <button class=\"btn btn-sm btn-light\" data-bs-toggle=\"modal\" data-bs-target=\"#payeeModal\" title=\"Edit\"><i class=\"bi bi-pencil\"></i></button>")
-        .Build("payeeGrid", exportName: "payees");
+        .Badge("Status", p => p.IsActive ? "In use" : "Not in use", p => p.IsActive ? "green" : "gray")
+        .Actions(p => (p.DvCount > 0 ? $"<a class=\"btn btn-sm btn-light\" href=\"{Url.Action("Index", "Vouchers", new { q = p.Name })}\" title=\"View DVs\"><i class=\"bi bi-folder2-open\"></i></a> " : "")
+            + $"<button class=\"btn btn-sm btn-light\" type=\"button\" title=\"Edit\" data-payee-edit data-id=\"{p.Id}\" data-name=\"{A(p.Name)}\" data-tin=\"{A(p.Tin)}\" data-address=\"{A(p.Address)}\" data-kind=\"{p.Kind}\" data-tax=\"{p.TaxType}\" data-active=\"{(p.IsActive ? "true" : "false")}\"><i class=\"bi bi-pencil\"></i></button>")
+        .Build("payeeGrid", exportName: "payees", emptyText: "No payees match your search.");
 }
 <div class="page-actions">
     <div class="me-auto text-body-secondary">Suppliers, job order workers and employees paid through DVs. Picked from a list when encoding, so TIN and address fill in by themselves.</div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#payeeModal"><i class="bi bi-plus-lg me-1"></i>Add Payee</button>
+    <button class="btn btn-primary" type="button" data-payee-add><i class="bi bi-plus-lg me-1"></i>Add Payee</button>
 </div>
-<ui-card title="Payees" icon="bi-people" flush="true"><partial name="UI/_DataGrid" model="grid" /></ui-card>
+@if (Model.Count == 0)
+{
+    <div class="card"><div class="card-body">
+        <partial name="UI/_EmptyState" model="@(new EmptyState("No payees yet", "Add them here, or just type a new name when encoding a DV — it is added to this list by itself.", "bi-people"))" />
+    </div></div>
+}
+else
+{
+    <ui-card title="Payees" icon="bi-people" flush="true"><partial name="UI/_DataGrid" model="grid" /></ui-card>
+}
 
-<div class="modal fade" id="payeeModal" tabindex="-1"><div class="modal-dialog"><form class="modal-content" asp-action="Save" asp-route-back="Payees" method="post">
-    <div class="modal-header"><h5 class="modal-title">Payee</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="payeeModal" tabindex="-1" aria-labelledby="payeeModalTitle" aria-hidden="true"><div class="modal-dialog"><form class="modal-content" asp-action="SavePayee" method="post">
+    <div class="modal-header"><h2 class="modal-title h5" id="payeeModalTitle">Add payee</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
     <div class="modal-body row g-3">
-        <div class="col-12"><label class="form-label">Name</label><input class="form-control" name="Name" /></div>
-        <div class="col-md-6"><label class="form-label">TIN</label><input class="form-control mono" name="Tin" placeholder="000-000-000-000" /></div>
-        <div class="col-md-6"><label class="form-label">Kind</label><select class="form-select" name="Kind"><option>Supplier</option><option>Job Order Worker</option><option>Employee</option></select></div>
-        <div class="col-12"><label class="form-label">Address</label><input class="form-control" name="Address" /></div>
-        <div class="col-md-6"><label class="form-label">Tax type</label><select class="form-select" name="TaxType"><option>Non-VAT</option><option>VAT</option><option>Exempt</option></select></div>
+        <input type="hidden" name="Id" value="0" />
+        <div class="col-12"><label class="form-label" for="pName">Name</label><input class="form-control" id="pName" name="Name" maxlength="200" required /></div>
+        <div class="col-md-6"><label class="form-label" for="pTin">TIN</label><input class="form-control mono" id="pTin" name="Tin" maxlength="30" placeholder="000-000-000-000" /></div>
+        <div class="col-md-6"><label class="form-label" for="pKind">Kind</label>
+            <select class="form-select" id="pKind" name="Kind"><option value="Supplier">Supplier</option><option value="JobOrderWorker">Job Order Worker</option><option value="Employee">Employee</option></select></div>
+        <div class="col-12"><label class="form-label" for="pAddress">Address</label><input class="form-control" id="pAddress" name="Address" maxlength="250" /></div>
+        <div class="col-md-6"><label class="form-label" for="pTax">Tax type</label>
+            <select class="form-select" id="pTax" name="TaxType"><option value="NonVat">Non-VAT</option><option value="Vat">VAT</option><option value="Exempt">Exempt</option></select></div>
+        <div class="col-md-6 d-flex align-items-end">
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="pActive" name="IsActive" value="true" checked />
+                <input type="hidden" name="IsActive" value="false" />
+                <label class="form-check-label" for="pActive">In use (offered when encoding)</label>
+            </div>
+        </div>
     </div>
     <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
 </form></div></div>
+
+@section Scripts {
+<script>
+(function () {
+    const el = document.getElementById("payeeModal"), f = el.querySelector("form"), modal = new bootstrap.Modal(el);
+    function open(d) {
+        const isNew = !d;
+        document.getElementById("payeeModalTitle").textContent = isNew ? "Add payee" : "Edit payee";
+        f.elements["Id"].value = isNew ? "0" : d.id;
+        f.elements["Name"].value = isNew ? "" : d.name;
+        f.elements["Tin"].value = isNew ? "" : d.tin;
+        f.elements["Address"].value = isNew ? "" : d.address;
+        f.elements["Kind"].value = isNew ? "Supplier" : d.kind;
+        f.elements["TaxType"].value = isNew ? "NonVat" : d.tax;
+        document.getElementById("pActive").checked = isNew ? true : d.active === "true";
+        modal.show();
+    }
+    document.querySelector("[data-payee-add]").addEventListener("click", () => open(null));
+    // The grid redraws its rows when sorting or paging, so listen on the page, not on each button.
+    document.addEventListener("click", e => { const b = e.target.closest("[data-payee-edit]"); if (b) open(b.dataset); });
+    el.addEventListener("shown.bs.modal", () => f.elements["Name"].focus());
+})();
+</script>
+}

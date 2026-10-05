@@ -29,13 +29,6 @@ public abstract class PortalControllerBase : Controller
         base.OnActionExecuting(context);
     }
 
-    /// <summary>Used by the template forms: shows a notice instead of saving.</summary>
-    protected IActionResult TemplateSaved(string what, string action, object? routeValues = null)
-    {
-        TempData["Toast"] = $"{what} — template only, nothing was saved yet.";
-        return RedirectToAction(action, routeValues);
-    }
-
     protected void Toast(string message) => TempData["Toast"] = message;
     protected void ToastError(string message) => TempData["ToastError"] = message;
 

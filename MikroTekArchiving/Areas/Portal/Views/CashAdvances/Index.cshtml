@@ -1,7 +1,8 @@
-﻿@model List<CashAdvanceRow>
+﻿@model List<CashAdvanceDto>
 @{
     ViewData["Title"] = "Cash Advances";
     ViewData["Crumb"] = "Disbursements";
+    var canAdd = User.Can(Permissions.CashAdvancesEncode);
     var grid = DataGrid.For(Model)
         .Text("Dept", c => c.Dept)
         .Text("Fund", c => c.FundName, hideOnMobile: true)
@@ -13,18 +14,28 @@
         .Money("Amount", c => c.Amount, total: true)
         .Money("Spent", c => c.Spent, total: true, hideOnMobile: true)
         .Money("Balance", c => c.Balance, total: true)
-        .Html("Utilization", c => $"<div class=\"progress\" style=\"min-width:110px\"><div class=\"progress-bar\" style=\"width:{c.PercentUsed}%\"></div></div><small class=\"text-body-secondary\">{c.PercentUsed}% · {c.Vouchers.Count} DVs</small>", hideOnMobile: true)
-        .Badge("Status", c => c.Status, c => c.Status == "Open" ? "blue" : "gray")
+        .Html("Utilization", c => $"<div class=\"progress\" style=\"min-width:110px\"><div class=\"progress-bar\" style=\"width:{Math.Clamp(c.PercentUsed, 0, 100)}%\"></div></div><small class=\"text-body-secondary\">{c.PercentUsed}% · {c.Vouchers.Count} DVs</small>", hideOnMobile: true)
+        .Badge("Status", c => c.Status, c => c.IsOpen ? "blue" : "gray")
         .Actions(c => $"<a class=\"btn btn-sm btn-outline-primary\" href=\"{Url.Action("Details", new { id = c.Id })}\">Open</a>")
         .Build("caGrid", searchable: true, exportName: "cash-advances");
 }
 <div class="page-actions">
     <div class="me-auto text-body-secondary">MOOE cash advances released to the school (School MOOE Slip). Every DV is charged against one.</div>
-    @if (User.Can(Permissions.CashAdvancesEncode))
+    @if (canAdd)
     {
         <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Record Cash Advance</a>
     }
 </div>
-<ui-card title="Cash advances" icon="bi-cash-stack" flush="true">
-    <partial name="UI/_DataGrid" model="grid" />
-</ui-card>
+@if (Model.Count == 0)
+{
+    <div class="card"><div class="card-body">
+        <partial name="UI/_EmptyState" model="@(new EmptyState("No cash advances yet", canAdd ? "Record the first School MOOE Slip. DVs are then charged against it." : "Nothing has been recorded yet.", "bi-cash-stack",
+            canAdd ? "Record Cash Advance" : null, Url.Action("Create")))" />
+    </div></div>
+}
+else
+{
+    <ui-card title="Cash advances" icon="bi-cash-stack" flush="true">
+        <partial name="UI/_DataGrid" model="grid" />
+    </ui-card>
+}
