@@ -10,7 +10,7 @@
     else { <span class="badge-status st-incomplete"><i class="bi bi-exclamation-circle"></i> @Model.DocsMissing document(s) missing</span> }
     <span class="badge-status st-closed">PAID @Fmt.Date(Model.PaidDate)</span>
     <span class="me-auto"></span>
-    @if (User.CanEncode())
+    @if (User.Can(Permissions.VouchersEncode))
     {
         <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Edit</a>
     }
@@ -109,7 +109,7 @@
                     </div>
                     <div class="card-footer bg-white d-flex align-items-center">
                         <span class="small text-body-secondary">Checked by: Anely R. Villegas, ADAS III</span>
-                        @if (User.CanEncode())
+                        @if (User.Can(Permissions.VouchersEncode))
                         {
                             <button class="btn btn-primary ms-auto"><i class="bi bi-save me-1"></i>Save checklist</button>
                         }
@@ -121,7 +121,7 @@
             <div class="tab-pane fade" id="tab-files">
                 <div class="card">
                     <div class="card-body">
-                        @if (User.CanEncode())
+                        @if (User.Can(Permissions.VouchersEncode))
                         {
                         <form asp-action="AddFiles" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="dropzone mb-3">
                             <i class="bi bi-cloud-arrow-up d-block mb-2"></i>

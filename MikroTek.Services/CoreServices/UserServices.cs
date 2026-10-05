@@ -82,7 +82,8 @@ namespace MikroTek.Services.CoreServices
                 await _users.CreateAsync(new Users
                 {
                     Username = username, Name = name, Position = position, Role = r.Role,
-                    ActiveStatus = r.ActiveStatus, Password = Encryption.HashPassword(r.Password!)
+                    ActiveStatus = r.ActiveStatus, Password = Encryption.HashPassword(r.Password!),
+                    MustChangePassword = true
                 });
                 _logger.WriteLog(Level.Info, LogType.Activity, $"User {byUserId} added staff account '{username}' ({r.Role}).");
                 return ServiceResult.Ok();
@@ -107,15 +108,35 @@ namespace MikroTek.Services.CoreServices
             return ServiceResult.Ok();
         }
 
-        public async Task<ServiceResult> ResetPasswordAsync(long id, string? newPassword)
+        public async Task<ServiceResult> ResetPasswordAsync(long id, string? newPassword, long byUserId)
         {
             if (PasswordProblem(newPassword) is { } pw) return ServiceResult.Fail(pw);
             var user = await _users.GetForEditAsync(id);
             if (user is null) return ServiceResult.Fail("That staff account no longer exists.");
 
             user.Password = Encryption.HashPassword(newPassword!);
+            user.MustChangePassword = user.Id != byUserId;
             await _users.SaveChangesAsync();
-            _logger.WriteLog(Level.Info, LogType.Activity, $"Password reset for '{user.Username}'.");
+            _logger.WriteLog(Level.Info, LogType.Activity, $"User {byUserId} set a temporary password for '{user.Username}'.");
+            return ServiceResult.Ok();
+        }
+
+        public async Task<ServiceResult> UpdateOwnProfileAsync(long id, string? name, string? position)
+        {
+            name = (name ?? "").Trim();
+            position = string.IsNullOrWhiteSpace(position) ? null : position.Trim();
+            if (name.Length == 0 || name.Length > 100)
+                return ServiceResult.Fail("Please enter your full name (up to 100 characters).");
+            if (position?.Length > 100)
+                return ServiceResult.Fail("Position is too long (up to 100 characters).");
+
+            var user = await _users.GetForEditAsync(id);
+            if (user is null) return ServiceResult.Fail("Your account no longer exists.");
+
+            user.Name = name;
+            user.Position = position;
+            await _users.SaveChangesAsync();
+            _logger.WriteLog(Level.Info, LogType.Activity, $"{user.Username} updated their own name/position.");
             return ServiceResult.Ok();
         }
 
@@ -130,6 +151,7 @@ namespace MikroTek.Services.CoreServices
                 return ServiceResult.Fail("The new password must be different from the current one.");
 
             user.Password = Encryption.HashPassword(newPassword!);
+            user.MustChangePassword = false;
             await _users.SaveChangesAsync();
             _logger.WriteLog(Level.Info, LogType.Activity, $"{user.Username} changed their password.");
             return ServiceResult.Ok();
@@ -141,6 +163,6 @@ namespace MikroTek.Services.CoreServices
                 : null;
 
         private static UserDto ToDto(Users u) =>
-            new(u.Id, u.Username, u.Name, u.Position, u.Role, u.ActiveStatus, u.LastLoginTime, u.LastLogoutTime);
+            new(u.Id, u.Username, u.Name, u.Position, u.Role, u.ActiveStatus, u.LastLoginTime, u.LastLogoutTime, u.MustChangePassword);
     }
 }

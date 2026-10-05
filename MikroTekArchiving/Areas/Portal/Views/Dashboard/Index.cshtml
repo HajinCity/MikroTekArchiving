@@ -43,9 +43,12 @@
 
 <div class="page-actions">
     <div class="me-auto text-body-secondary">@(DateTime.Now.Hour < 12 ? "Good morning" : DateTime.Now.Hour < 18 ? "Good afternoon" : "Good evening"), <b>@User.FirstName()</b>. Here's the status of the disbursement archive.</div>
-    @if (User.CanEncode())
+    @if (User.Can(Permissions.VouchersEncode))
     {
         <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Scanned DV</a>
+    }
+    @if (User.Can(Permissions.CashAdvancesEncode))
+    {
         <a class="btn btn-outline-primary" asp-controller="CashAdvances" asp-action="Create"><i class="bi bi-cash-stack me-1"></i>Record Cash Advance</a>
     }
 </div>

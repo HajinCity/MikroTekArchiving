@@ -7,6 +7,8 @@
         /// <summary>Encodes and archives disbursement vouchers.</summary>
         Bookkeeper,
         /// <summary>Everything, including setup, users and the hotspot.</summary>
-        Admin
+        Admin,
+        /// <summary>Records cash advances and encodes disbursement vouchers.</summary>
+        DisbursementOfficer
     }
 }

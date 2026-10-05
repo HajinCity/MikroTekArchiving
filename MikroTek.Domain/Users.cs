@@ -2,7 +2,7 @@
 
 namespace MikroTek.Domain
 {
-    /// <summary>Everyone who can sign in: hotspot admin and portal staff (Admin / Bookkeeper / Viewer).</summary>
+    /// <summary>Everyone who can sign in: hotspot admin and portal staff (Admin / Bookkeeper / Disbursement Officer / Viewer).</summary>
     public class Users : BaseEntity
     {
         public string Username { get; set; } = "";
@@ -20,5 +20,8 @@ namespace MikroTek.Domain
 
         /// <summary>true = can sign in, false = blocked.</summary>
         public bool ActiveStatus { get; set; } = true;
+
+        /// <summary>true = the password is temporary (set by an admin); the person must choose their own after signing in.</summary>
+        public bool MustChangePassword { get; set; }
     }
 }

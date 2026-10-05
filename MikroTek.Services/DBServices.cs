@@ -19,10 +19,12 @@ namespace MikroTek.Services
             services.AddScoped<PlansQueries>();
             services.AddScoped<VouchersQueries>();
             services.AddScoped<HotspotSessionsQueries>();
-            services.AddScoped<FundBudgetsQueries>();       
+            services.AddScoped<FundBudgetsQueries>();
+            services.AddScoped<RolePermissionsQueries>();       
             services.AddScoped<IVouchers, VoucherServices>();
             services.AddScoped<IUsers, UserServices>();
-            services.AddScoped<IFundBudgets, FundBudgetServices>();         
+            services.AddScoped<IFundBudgets, FundBudgetServices>();
+            services.AddScoped<IRoles, RoleServices>();         
             services.AddSingleton<IRouterService, FakeRouterService>();
 
             

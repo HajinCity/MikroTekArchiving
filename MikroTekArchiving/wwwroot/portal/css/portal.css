@@ -151,3 +151,13 @@
 /* Dashboard grouped columns (legacy) */
 .cols { display: flex; align-items: flex-end; gap: 1.5rem; height: 170px; border-bottom: 1px solid var(--line); padding: 0 .5rem; }
 .grid-clip { max-width: 260px; }
+
+/* ---------- Settings → Roles & Access (checklist per role) ---------- */
+.roles-table thead th { vertical-align: top; min-width: 130px; }
+.roles-table thead th:first-child { min-width: 260px; }
+.roles-table .roles-sub { font-weight: 400; font-size: .75rem; color: var(--bs-secondary-color); text-transform: none; letter-spacing: 0; white-space: normal; }
+.roles-table .roles-count { font-weight: 600; font-size: .75rem; margin-top: .25rem; text-transform: none; letter-spacing: 0; }
+.roles-table .roles-group th { background: var(--bs-tertiary-bg); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+.roles-table .form-check-input { width: 1.25rem; height: 1.25rem; margin: 0; cursor: pointer; }
+.roles-table .form-check-input:disabled { cursor: not-allowed; }
+.roles-table tbody tr:not(.roles-group):hover > * { background: var(--bs-tertiary-bg); }

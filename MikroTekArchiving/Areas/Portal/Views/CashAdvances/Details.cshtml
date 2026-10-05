@@ -9,7 +9,7 @@
     <span class="dept dept-@Model.Dept">@(Model.Dept == "JHS" ? "Junior High" : "Senior High")</span>
     <span class="badge-status @(Model.Status == "Open" ? "st-open" : "st-closed")">@Model.Status</span>
     <span class="me-auto"></span>
-    @if (User.CanEncode())
+    @if (User.Can(Permissions.VouchersEncode))
     {
         <a class="btn btn-primary" asp-controller="Vouchers" asp-action="Upload" asp-route-ca="@Model.Id"><i class="bi bi-plus-lg me-1"></i>Add DV to this advance</a>
     }

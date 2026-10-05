@@ -20,7 +20,7 @@
         {
             <div class="fund-figure">@Fmt.Peso(Model.SpentInYear)</div>
             <div class="small text-body-secondary">spent this year · <span class="text-warning-emphasis"><i class="bi bi-exclamation-circle"></i> budget not set</span></div>
-            @if (User.IsAdmin())
+            @if (User.Can(Permissions.SetupBudgets))
             {
                 <a class="btn btn-sm btn-outline-primary mt-3 position-relative" asp-controller="Setup" asp-action="Budgets" asp-route-year="@Model.Year"><i class="bi bi-pencil me-1"></i>Set budget</a>
             }

@@ -1,0 +1,78 @@
+﻿@using MikroTek.Services.DTO
+@model UserDto
+@{
+    ViewData["Title"] = "My Account";
+    ViewData["Crumb"] = "Settings";
+    var minPw = MikroTek.Services.CoreServices.UserServices.MinPasswordLength;
+    var mustChange = User.HasTemporaryPassword() || User.UsingDefaultPassword();
+}
+@if (User.HasTemporaryPassword())
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-shield-exclamation"></i>
+        <div>Your password is <b>temporary</b>. Choose your own password below to start using the system.</div>
+    </div>
+}
+<div class="row g-3" style="max-width:1100px">
+    <div class="col-lg-6">
+        <form class="card h-100" asp-action="SaveAccount" method="post">
+            <div class="card-header"><i class="bi bi-person-circle me-1"></i>Account information</div>
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <span class="app-avatar" style="width:56px;height:56px;font-size:1.2rem">@Model.Initials</span>
+                    <div>
+                        <div class="fw-semibold">@Model.Name</div>
+                        <div class="small text-body-secondary">@RoleNames.Display(Model.Role) · last sign-in @(Model.LastLoginTime?.ToString("MMM d, yyyy h:mm tt") ?? "—")</div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="aName">Full name</label>
+                    <input id="aName" name="name" class="form-control" maxlength="100" value="@Model.Name" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="aPosition">Position <span class="text-body-secondary small">(optional)</span></label>
+                    <input id="aPosition" name="position" class="form-control" maxlength="100" value="@Model.Position" placeholder="e.g. ADAS III" />
+                    <div class="form-text">Shown beside your name and on printed reports.</div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label class="form-label" for="aUsername">Username</label>
+                        <input id="aUsername" class="form-control mono" value="@Model.Username" disabled />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="aRole">Role</label>
+                        <input id="aRole" class="form-control" value="@RoleNames.Display(Model.Role)" disabled />
+                    </div>
+                </div>
+                <div class="form-text mt-2"><i class="bi bi-lock me-1"></i>Only the System Admin can change your username and role.</div>
+            </div>
+            <div class="card-footer d-flex justify-content-end">
+                <button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save changes</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-6">
+        <form class="card h-100" asp-action="ChangePassword" method="post" id="password">
+            <div class="card-header"><i class="bi bi-key me-1"></i>Password</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" for="cur">@(User.HasTemporaryPassword() ? "Temporary password (the one you signed in with)" : "Current password")</label>
+                    <input id="cur" name="CurrentPassword" type="password" class="form-control" autocomplete="current-password" required autofocus="@mustChange" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="new">New password</label>
+                    <input id="new" name="NewPassword" type="password" class="form-control" autocomplete="new-password" minlength="@minPw" required />
+                    <div class="form-text">At least @minPw characters. A short sentence is easier to remember than random letters.</div>
+                </div>
+                <div>
+                    <label class="form-label" for="confirm">Type the new password again</label>
+                    <input id="confirm" name="ConfirmPassword" type="password" class="form-control" autocomplete="new-password" required />
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end">
+                <button class="btn btn-primary"><i class="bi bi-key me-1"></i>Change password</button>
+            </div>
+        </form>
+    </div>
+</div>

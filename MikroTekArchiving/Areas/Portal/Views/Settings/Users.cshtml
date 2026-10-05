@@ -1,0 +1,137 @@
+﻿@using MikroTek.Domain
+@using MikroTek.Services.DTO
+@model List<UserDto>
+@{
+    ViewData["Title"] = "Staff Users";
+    ViewData["Crumb"] = "Settings";
+    var minPw = MikroTek.Services.CoreServices.UserServices.MinPasswordLength;
+    string RoleCss(UserRole r) => r == UserRole.Admin ? "st-incomplete" : r == UserRole.Viewer ? "st-closed" : "st-open";
+}
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">Who can sign in, and with which role. What each role can do is set in <a asp-action="Roles">Roles &amp; Access</a>.</div>
+    <button class="btn btn-primary" type="button" data-user-add><i class="bi bi-person-plus me-1"></i>Add User</button>
+</div>
+<div class="card">
+    <div class="table-responsive">
+    <table class="table table-portal mb-0">
+        <thead><tr><th>Name</th><th>Username</th><th>Position</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var u in Model)
+            {
+                var me = u.Id == User.UserId();
+                <tr class="@(u.ActiveStatus ? "" : "text-body-secondary")">
+                    <td><span class="app-avatar d-inline-grid me-2 align-middle" style="width:28px;height:28px;font-size:.7rem">@u.Initials</span>@u.Name @if (me) { <span class="badge text-bg-light border ms-1">you</span> }</td>
+                    <td class="mono">@u.Username</td>
+                    <td>@u.Position</td>
+                    <td><span class="badge-status @RoleCss(u.Role)">@RoleNames.Display(u.Role)</span></td>
+                    <td class="small">@(u.LastLoginTime?.ToString("MMM d, yyyy h:mm tt") ?? "Never")</td>
+                    <td>@if (u.ActiveStatus) { <span class="badge-status st-complete">Active</span> } else { <span class="badge-status st-closed">Disabled</span> }
+                        @if (u.MustChangePassword) { <span class="badge text-bg-warning ms-1" title="Has not chosen their own password yet">temporary password</span> }</td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-light" type="button" title="Edit" data-user-edit
+                                data-id="@u.Id" data-username="@u.Username" data-name="@u.Name" data-position="@u.Position"
+                                data-role="@u.Role" data-active="@(u.ActiveStatus ? "true" : "false")"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light" type="button" title="Reset password (temporary)" data-user-reset
+                                data-id="@u.Id" data-name="@u.Name" data-me="@(me ? "true" : "false")"><i class="bi bi-key"></i></button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<!-- Add / edit -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" asp-action="SaveUser" method="post">
+            <div class="modal-header"><h2 class="modal-title h5" id="userModalTitle">Add user</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="Id" value="0" />
+                <div class="mb-3"><label class="form-label" for="uName">Full name</label><input id="uName" name="Name" class="form-control" maxlength="100" required /></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6"><label class="form-label" for="uUsername">Username</label><input id="uUsername" name="Username" class="form-control" pattern="[a-zA-Z0-9._\-]{3,50}" title="3–50 letters, numbers, dot, dash or underscore" autocomplete="off" required /></div>
+                    <div class="col-sm-6"><label class="form-label" for="uPosition">Position <span class="text-body-secondary small">(optional)</span></label><input id="uPosition" name="Position" class="form-control" maxlength="100" placeholder="e.g. ADAS III" /></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="uRole">Role</label>
+                    <select id="uRole" name="Role" class="form-select">
+                        @foreach (var r in RoleNames.Order.Reverse())
+                        {
+                            <option value="@r">@RoleNames.Display(r) — @RoleNames.Describe(r)</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3" data-new-only>
+                    <label class="form-label" for="uPassword">Temporary password</label>
+                    <input id="uPassword" name="Password" type="password" class="form-control" minlength="@minPw" autocomplete="new-password" />
+                    <div class="form-text">At least @minPw characters. Give it to the person privately; they must choose their own password when they first sign in.</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="uActive" name="ActiveStatus" value="true" checked />
+                    <input type="hidden" name="ActiveStatus" value="false" />
+                    <label class="form-check-label" for="uActive">Active (can sign in)</label>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset password -->
+<div class="modal fade" id="resetModal" tabindex="-1" aria-labelledby="resetModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" asp-action="ResetPassword" method="post">
+            <div class="modal-header"><h2 class="modal-title h5" id="resetModalTitle">Reset password</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="id" />
+                <label class="form-label" for="rPassword">Temporary password for <b data-reset-name></b></label>
+                <div class="input-group">
+                    <input id="rPassword" name="newPassword" type="text" class="form-control mono" minlength="@minPw" autocomplete="off" spellcheck="false" required />
+                    <button class="btn btn-outline-primary" type="button" data-reset-generate><i class="bi bi-shuffle me-1"></i>Generate</button>
+                </div>
+                <div class="form-text">At least @minPw characters.</div>
+                <div class="alert alert-info small py-2 mt-3 mb-0" data-reset-note>
+                    <i class="bi bi-info-circle me-1"></i>This password is <b>temporary</b>. Write it down and give it to the person privately.
+                    When they sign in with it, the system asks them to choose their own password before they can do anything else.
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Set temporary password</button></div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const um = document.getElementById("userModal"), f = um.querySelector("form");
+    const userModal = new bootstrap.Modal(um), resetModal = new bootstrap.Modal(document.getElementById("resetModal"));
+    const set = (n, v) => { f.elements[n].value = v; };
+    function open(d) {
+        const isNew = !d;
+        document.getElementById("userModalTitle").textContent = isNew ? "Add user" : "Edit " + d.name;
+        set("Id", isNew ? "0" : d.id); set("Name", isNew ? "" : d.name); set("Username", isNew ? "" : d.username);
+        set("Position", isNew ? "" : (d.position || "")); set("Role", isNew ? "Viewer" : d.role);
+        document.getElementById("uActive").checked = isNew ? true : d.active === "true";
+        um.querySelector("[data-new-only]").hidden = !isNew;
+        f.elements["Password"].required = isNew; f.elements["Password"].value = "";
+        userModal.show();
+    }
+    document.querySelector("[data-user-add]").addEventListener("click", () => open(null));
+    document.querySelectorAll("[data-user-edit]").forEach(b => b.addEventListener("click", () => open(b.dataset)));
+    document.querySelectorAll("[data-user-reset]").forEach(b => b.addEventListener("click", () => {
+        const rf = document.querySelector("#resetModal form");
+        rf.elements["id"].value = b.dataset.id; rf.elements["newPassword"].value = "";
+        document.querySelector("[data-reset-name]").textContent = b.dataset.name;
+        document.querySelector("[data-reset-note]").hidden = b.dataset.me === "true";
+        resetModal.show();
+    }));
+    // Easy to read aloud and type: no look-alike characters (0/O, 1/l/I).
+    document.querySelector("[data-reset-generate]").addEventListener("click", () => {
+        const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+        const picks = crypto.getRandomValues(new Uint32Array(10));
+        document.getElementById("rPassword").value = [...picks].map(n => chars[n % chars.length]).join("");
+    });
+})();
+</script>
+}

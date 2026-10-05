@@ -7,13 +7,13 @@ using MikroTek.Services.Interface;
 
 namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
-/// <summary>Staff sign-in / sign-out and changing your own password.</summary>
+/// <summary>Staff sign-in and sign-out. (Editing your own account is in SettingsController.)</summary>
 public class AccountController(IUsers users) : PortalControllerBase
 {
     [HttpGet, AllowAnonymous]
     public IActionResult Login(string? returnUrl)
     {
-        if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "Dashboard");
+        if (User.Identity?.IsAuthenticated == true) return RedirectHome();
         return View(new LoginInput { ReturnUrl = returnUrl });
     }
 
@@ -32,13 +32,20 @@ public class AccountController(IUsers users) : PortalControllerBase
         if (input.Remember) props.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14);
         await HttpContext.SignInAsync(PortalAuth.Scheme, PortalAuth.CreatePrincipal(result.User!, result.UsingDefaultPassword), props);
 
-        if (result.UsingDefaultPassword)
+        if (result.UsingDefaultPassword || result.User!.MustChangePassword)
         {
-            ToastError("You signed in with the default admin password. Please change it now.");
-            return RedirectToAction(nameof(ChangePassword));
+            ToastError(result.UsingDefaultPassword
+                ? "You signed in with the default admin password. Please change it now."
+                : "You signed in with a temporary password. Please choose your own password now.");
+            return RedirectToAction("Account", "Settings");
         }
-        return Url.IsLocalUrl(input.ReturnUrl) ? Redirect(input.ReturnUrl!) : RedirectToAction("Index", "Dashboard");
+        // "Home" resolves to the first page this person may open (their access is not loaded yet in this request).
+        return Url.IsLocalUrl(input.ReturnUrl) ? Redirect(input.ReturnUrl!) : RedirectToAction(nameof(Home));
     }
+
+    /// <summary>Sends the signed-in person to the first page they are allowed to open.</summary>
+    [HttpGet]
+    public IActionResult Home() => RedirectHome();
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
@@ -52,32 +59,7 @@ public class AccountController(IUsers users) : PortalControllerBase
     [HttpGet]
     public IActionResult Denied() => View();
 
+    /// <summary>Old address of the change-password page: it now lives in Settings → My Account.</summary>
     [HttpGet]
-    public IActionResult ChangePassword() => View(new ChangePasswordInput());
-
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ChangePassword(ChangePasswordInput input)
-    {
-        if (input.NewPassword != input.ConfirmPassword)
-        {
-            ModelState.AddModelError("", "The new password and its confirmation do not match.");
-            return View(new ChangePasswordInput());
-        }
-
-        var result = await users.ChangeOwnPasswordAsync(User.UserId(), input.CurrentPassword, input.NewPassword);
-        if (!result.Success)
-        {
-            ModelState.AddModelError("", result.Error!);
-            return View(new ChangePasswordInput());
-        }
-
-        // Sign in again (keeping "keep me signed in") so the "default password" warning disappears.
-        if (await users.GetAsync(User.UserId()) is { } me)
-        {
-            var current = await HttpContext.AuthenticateAsync(PortalAuth.Scheme);
-            await HttpContext.SignInAsync(PortalAuth.Scheme, PortalAuth.CreatePrincipal(me), current.Properties);
-        }
-        Toast("Your password has been changed.");
-        return RedirectToAction("Index", "Dashboard");
-    }
+    public IActionResult ChangePassword() => RedirectToAction("Account", "Settings");
 }

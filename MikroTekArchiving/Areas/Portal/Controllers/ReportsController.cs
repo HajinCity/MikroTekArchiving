@@ -1,8 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using MikroTek.Archiving.Areas.Portal.Helpers;
 using MikroTek.Archiving.Areas.Portal.TemplateData;
+using MikroTek.Services.Utils;
 
 namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
+[Permission(Permissions.ReportsView)]
 public class ReportsController : PortalControllerBase
 {
     public IActionResult Index() => View();

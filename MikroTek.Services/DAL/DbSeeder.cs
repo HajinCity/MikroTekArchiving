@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MikroTek.Common;
 using MikroTek.Domain;
+using MikroTek.Services.Utils;
 
 namespace MikroTek.Services.DAL
 {
-    /// <summary>Starter data added the first time: the admin account, the plans and the TEST vouchers.</summary>
+    /// <summary>Starter data added the first time: the admin account, the plans, the TEST vouchers and each role's access.</summary>
     public static class DbSeeder
     {
         public static async Task SeedAsync(DB db)
@@ -37,6 +38,14 @@ namespace MikroTek.Services.DAL
                     new Vouchers { VoucherCode = "TESTWEEK", Plan = week, BatchNo = "DEMO", CreatedBy = "seed" },
                     new Vouchers { VoucherCode = "TESTDSBL", Plan = hour, BatchNo = "DEMO", CreatedBy = "seed",
                                    Status = VoucherStatus.Disabled });
+            }
+
+            // The starting ticks of the Roles & Access page. Only added once: later changes are the admin's.
+            if (!await db.RolePermissions.AnyAsync())
+            {
+                foreach (var role in Enum.GetValues<UserRole>())
+                    db.RolePermissions.AddRange(Permissions.DefaultsFor(role)
+                        .Select(p => new RolePermissions { Role = role, Permission = p, CreatedAt = DateTime.Now }));
             }
 
             await db.SaveChangesAsync();

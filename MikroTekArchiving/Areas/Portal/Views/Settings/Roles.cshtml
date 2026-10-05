@@ -1,0 +1,95 @@
+﻿@using MikroTek.Domain
+@model Dictionary<UserRole, HashSet<string>>
+@{
+    ViewData["Title"] = "Roles & Access";
+    ViewData["Crumb"] = "Settings";
+    var roles = RoleNames.Order;
+    var grantable = Permissions.All.Count(p => !p.AdminOnly);
+}
+<div class="page-actions">
+    <div class="me-auto text-body-secondary">Tick what each role is allowed to do. A person's role is set in <a asp-action="Users">Staff Users</a>.</div>
+</div>
+
+<form class="card" asp-action="SaveRoles" method="post" id="rolesForm">
+    <div class="table-responsive">
+        <table class="table table-portal roles-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Feature</th>
+                    @foreach (var role in roles)
+                    {
+                        <th scope="col" class="text-center">
+                            <div>@RoleNames.Display(role)</div>
+                            <div class="roles-sub">@RoleNames.Describe(role)</div>
+                            @if (role == UserRole.Admin) { <div class="roles-count"><i class="bi bi-lock-fill"></i> all, always</div> }
+                            else { <div class="roles-count"><span data-count="@role">@Model[role].Count</span> of @grantable</div> }
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var group in Permissions.Groups)
+                {
+                    <tr class="roles-group"><th colspan="@(roles.Length + 1)" scope="colgroup"><i class="bi @group.Icon me-2"></i>@group.Name</th></tr>
+                    @foreach (var p in group.Items)
+                    {
+                        <tr>
+                            <th scope="row" class="fw-normal">
+                                <div>@p.Label</div>
+                                <div class="small text-body-secondary">@p.Hint@(p.AdminOnly ? " · System Admin only" : "")</div>
+                            </th>
+                            @foreach (var role in roles)
+                            {
+                                var locked = role == UserRole.Admin || p.AdminOnly;
+                                <td class="text-center">
+                                    @if (p.AdminOnly && role != UserRole.Admin)
+                                    {
+                                        <i class="bi bi-lock text-body-tertiary" title="System Admin only" aria-label="@RoleNames.Display(role): not available (System Admin only)"></i>
+                                    }
+                                    else if (locked)
+                                    {
+                                        <input class="form-check-input" type="checkbox" checked="@(role == UserRole.Admin)" disabled
+                                               aria-label="@RoleNames.Display(role): @p.Label (cannot be changed)" />
+                                    }
+                                    else
+                                    {
+                                        <input class="form-check-input" type="checkbox" name="grants" value="@role:@p.Key" checked="@Model[role].Contains(p.Key)"
+                                               data-role="@role" data-key="@p.Key" data-needs="@(Permissions.Requires.GetValueOrDefault(p.Key))"
+                                               aria-label="@RoleNames.Display(role): @p.Label" />
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer d-flex flex-wrap align-items-center gap-2">
+        <div class="small text-body-secondary me-auto"><i class="bi bi-info-circle me-1"></i>System Admin always has full access, and only the System Admin manages users and access, so nobody can be locked out.</div>
+        <a class="btn btn-light" asp-action="Roles">Undo changes</a>
+        <button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save access</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+(function () {
+    const form = document.getElementById("rolesForm");
+    const boxes = [...form.querySelectorAll("input[name=grants]")];
+    const find = (role, key) => boxes.find(b => b.dataset.role === role && b.dataset.key === key);
+    function count() {
+        form.querySelectorAll("[data-count]").forEach(el => {
+            el.textContent = boxes.filter(b => b.dataset.role === el.dataset.count && b.checked).length;
+        });
+    }
+    form.addEventListener("change", e => {
+        const b = e.target; if (!b.matches("input[name=grants]")) return;
+        // "Record / encode" needs "view": tick it too. Removing "view" removes what depends on it.
+        if (b.checked && b.dataset.needs) { const n = find(b.dataset.role, b.dataset.needs); if (n) n.checked = true; }
+        if (!b.checked) boxes.filter(x => x.dataset.role === b.dataset.role && x.dataset.needs === b.dataset.key).forEach(x => x.checked = false);
+        count();
+    });
+})();
+</script>
+}

@@ -22,7 +22,7 @@
 }
 <div class="page-actions">
     <div class="me-auto text-body-secondary">@Model.Count voucher(s) found</div>
-    @if (User.CanEncode())
+    @if (User.Can(Permissions.VouchersEncode))
     {
         <a class="btn btn-outline-primary" asp-action="Create"><i class="bi bi-keyboard me-1"></i>Manual Encode</a>
         <a class="btn btn-primary" asp-action="Upload"><i class="bi bi-cloud-arrow-up me-1"></i>Upload Scanned DV</a>

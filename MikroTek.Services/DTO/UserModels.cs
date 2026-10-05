@@ -4,7 +4,8 @@ namespace MikroTek.Services.DTO
 {
     /// <summary>A staff account as the pages see it (never includes the password).</summary>
     public record UserDto(long Id, string Username, string Name, string? Position, UserRole Role,
-                          bool ActiveStatus, DateTime? LastLoginTime, DateTime? LastLogoutTime)
+                          bool ActiveStatus, DateTime? LastLoginTime, DateTime? LastLogoutTime,
+                          bool MustChangePassword = false)
     {
         public string Initials =>
             string.Concat(Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(p => char.IsLetter(p[0])).Take(2).Select(p => char.ToUpper(p[0])));

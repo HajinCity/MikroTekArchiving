@@ -10,6 +10,8 @@
     bool Is(string c, params string[] actions) => controller == c && (actions.Length == 0 || actions.Contains(action));
     var title = ViewData["Title"] as string ?? "Portal";
     var crumbs = (ViewData["Crumb"] as string)?.Split(" / ", StringSplitOptions.RemoveEmptyEntries) ?? [];
+    bool Can(string permission) => User.Can(permission);
+    var canSetup = User.CanAny(Permissions.SetupPayees, Permissions.SetupAccounts, Permissions.SetupBudgets, Permissions.SetupChecklists, Permissions.SetupSchool);
 }
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -26,15 +28,18 @@
 <body class="app">
     <!-- ============ TOP BAR ============ -->
     <header class="app-topbar">
-        <a class="app-brand" asp-controller="Dashboard" asp-action="Index">
+        <a class="app-brand" asp-controller="Account" asp-action="Home">
             <span class="app-logo"><i class="bi bi-archive-fill"></i></span>
             <span class="app-brand-text">DV ARCHIVE<small>Leonardo National High School</small></span>
         </a>
         <button class="app-icon-btn" type="button" data-ui-sidebar-toggle aria-label="Toggle menu"><i class="bi bi-list"></i></button>
+        @if (Can(Permissions.VouchersView))
+        {
         <form class="app-search d-none d-md-block" asp-controller="Vouchers" asp-action="Index" method="get" role="search">
             <i class="bi bi-search"></i>
             <input name="q" class="form-control form-control-sm" placeholder="Search DV no., payee, check no." aria-label="Search" />
         </form>
+        }
         <div class="ms-auto d-flex align-items-center gap-1">
             <button class="app-icon-btn d-none d-md-grid" type="button" data-ui-fullscreen title="Full screen"><i class="bi bi-arrows-fullscreen"></i></button>
             <button class="app-icon-btn" type="button" data-ui-theme-toggle title="Light / dark mode"><i class="bi bi-moon-stars"></i></button>
@@ -52,12 +57,13 @@
             <div class="dropdown ms-1">
                 <button class="app-user" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <span class="app-avatar">@User.Initials()</span>
-                    <span class="d-none d-lg-block text-start lh-sm"><span class="d-block fw-semibold small">@User.FullName()</span><span class="small opacity-75">@User.RoleName()@(string.IsNullOrEmpty(User.Position()) ? "" : " · " + User.Position())</span></span>
+                    <span class="d-none d-lg-block text-start lh-sm"><span class="d-block fw-semibold small">@User.FullName()</span><span class="small opacity-75">@User.RoleDisplay()@(string.IsNullOrEmpty(User.Position()) ? "" : " · " + User.Position())</span></span>
                     <i class="bi bi-chevron-down small d-none d-lg-inline"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><h6 class="dropdown-header">Signed in as <b>@User.Identity?.Name</b></h6></li>
-                    <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword"><i class="bi bi-key me-2"></i>Change password</a></li>
+                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Account"><i class="bi bi-person-circle me-2"></i>My account</a></li>
+                    <li><a class="dropdown-item" asp-controller="Settings" asp-action="Account" asp-fragment="password"><i class="bi bi-key me-2"></i>Change password</a></li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
                         <form asp-controller="Account" asp-action="Logout" method="post">
@@ -72,18 +78,32 @@
     <!-- ============ SIDEBAR ============ -->
     <aside class="app-sidebar" aria-label="Main menu">
         <nav class="app-nav">
-            <div class="app-nav-label">Main</div>
-            <a class="app-nav-link @A(Is("Dashboard"))" asp-controller="Dashboard" asp-action="Index" title="Dashboard"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+            @if (Can(Permissions.DashboardView))
+            {
+                <div class="app-nav-label">Main</div>
+                <a class="app-nav-link @A(Is("Dashboard"))" asp-controller="Dashboard" asp-action="Index" title="Dashboard"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+            }
 
-            <div class="app-nav-label">Disbursements</div>
-            <a class="app-nav-link @A(Is("CashAdvances"))" asp-controller="CashAdvances" asp-action="Index" title="Cash Advances"><i class="bi bi-cash-stack"></i><span>Cash Advances</span></a>
-            <a class="app-nav-link @A(Is("Vouchers", "Index", "Details", "Edit", "Print"))" asp-controller="Vouchers" asp-action="Index" title="Disbursement Vouchers"><i class="bi bi-folder2-open"></i><span>Disbursement Vouchers</span></a>
-            @if (User.CanEncode())
+            @if (User.CanAny(Permissions.CashAdvancesView, Permissions.VouchersView))
+            {
+                <div class="app-nav-label">Disbursements</div>
+            }
+            @if (Can(Permissions.CashAdvancesView))
+            {
+                <a class="app-nav-link @A(Is("CashAdvances"))" asp-controller="CashAdvances" asp-action="Index" title="Cash Advances"><i class="bi bi-cash-stack"></i><span>Cash Advances</span></a>
+            }
+            @if (Can(Permissions.VouchersView))
+            {
+                <a class="app-nav-link @A(Is("Vouchers", "Index", "Details", "Edit", "Print"))" asp-controller="Vouchers" asp-action="Index" title="Disbursement Vouchers"><i class="bi bi-folder2-open"></i><span>Disbursement Vouchers</span></a>
+            }
+            @if (Can(Permissions.VouchersEncode))
             {
                 <a class="app-nav-link @A(Is("Vouchers", "Upload", "Review"))" asp-controller="Vouchers" asp-action="Upload" title="Upload Scanned DV"><i class="bi bi-cloud-arrow-up"></i><span>Upload Scanned DV</span><span class="badge rounded-pill text-bg-warning">1</span></a>
                 <a class="app-nav-link @A(Is("Vouchers", "Create"))" asp-controller="Vouchers" asp-action="Create" title="Manual Encode"><i class="bi bi-keyboard"></i><span>Manual Encode</span></a>
             }
 
+            @if (Can(Permissions.ReportsView))
+            {
             <div class="app-nav-label">Reports</div>
             <button class="app-nav-link @A(Is("Reports"))" type="button" data-bs-toggle="collapse" data-bs-target="#navReports" aria-expanded="@(Is("Reports") ? "true" : "false")" title="Reports">
                 <i class="bi bi-printer"></i><span>Liquidation Reports</span><i class="bi bi-chevron-right caret"></i>
@@ -93,27 +113,58 @@
                 <li><a asp-controller="Reports" asp-action="Register" asp-route-id="1">Cash Disbursements Register</a></li>
                 <li><a asp-controller="Reports" asp-action="Alphalist" asp-route-id="1">Alphalist of Payees</a></li>
             </ul>
+            }
 
-            @if (User.CanEncode())
+            @if (canSetup)
             {
                 <div class="app-nav-label">Setup</div>
+            }
+            @if (Can(Permissions.SetupPayees))
+            {
                 <a class="app-nav-link @A(Is("Setup", "Payees"))" asp-controller="Setup" asp-action="Payees" title="Payees"><i class="bi bi-people"></i><span>Payees</span></a>
+            }
+            @if (Can(Permissions.SetupAccounts))
+            {
                 <a class="app-nav-link @A(Is("Setup", "Accounts"))" asp-controller="Setup" asp-action="Accounts" title="UACS Accounts"><i class="bi bi-journal-text"></i><span>UACS Accounts</span></a>
             }
-            @if (User.IsAdmin())
+            @if (Can(Permissions.SetupBudgets))
             {
                 <a class="app-nav-link @A(Is("Setup", "Budgets"))" asp-controller="Setup" asp-action="Budgets" title="Fund Budgets"><i class="bi bi-piggy-bank"></i><span>Fund Budgets</span></a>
+            }
+            @if (Can(Permissions.SetupChecklists))
+            {
                 <a class="app-nav-link @A(Is("Setup", "Checklists", "Checklist"))" asp-controller="Setup" asp-action="Checklists" title="Checklist Templates"><i class="bi bi-list-check"></i><span>Checklist Templates</span></a>
-                <a class="app-nav-link @A(Is("Setup", "Users"))" asp-controller="Setup" asp-action="Users" title="Staff Users"><i class="bi bi-person-badge"></i><span>Staff Users</span></a>
+            }
+            @if (Can(Permissions.SetupSchool))
+            {
                 <a class="app-nav-link @A(Is("Setup", "School"))" asp-controller="Setup" asp-action="School" title="School & Signatories"><i class="bi bi-building"></i><span>School &amp; Signatories</span></a>
+            }
 
+            <div class="app-nav-label">System</div>
+            <button class="app-nav-link @A(Is("Settings"))" type="button" data-bs-toggle="collapse" data-bs-target="#navSettings" aria-expanded="@(Is("Settings") ? "true" : "false")" title="Settings">
+                <i class="bi bi-gear"></i><span>Settings</span><i class="bi bi-chevron-right caret"></i>
+            </button>
+            <ul class="app-nav-sub collapse @(Is("Settings") ? "show" : "")" id="navSettings">
+                <li><a class="@A(Is("Settings", "Account"))" asp-controller="Settings" asp-action="Account">My Account</a></li>
+                @if (Can(Permissions.SettingsUsers))
+                {
+                    <li><a class="@A(Is("Settings", "Users"))" asp-controller="Settings" asp-action="Users">Staff Users</a></li>
+                }
+                @if (Can(Permissions.SettingsRoles))
+                {
+                    <li><a class="@A(Is("Settings", "Roles"))" asp-controller="Settings" asp-action="Roles">Roles &amp; Access</a></li>
+                }
+            </ul>
+
+            @if (User.IsAdmin())
+            {
                 <div class="app-nav-label">Developer</div>
                 <a class="app-nav-link @A(Is("Kit"))" asp-controller="Kit" asp-action="Index" title="UI Kit"><i class="bi bi-grid-1x2"></i><span>UI Kit</span><span class="badge rounded-pill text-bg-primary">new</span></a>
             }
         </nav>
         <div class="app-sidebar-foot">
             <span class="badge text-bg-warning">Template preview</span>
-            <div class="mt-1">Sign-in, Staff Users and Fund Budgets are live. DVs, cash advances and reports still show sample data.</div>
+            <div class="mt-1">Sign-in, Settings and Fund Budgets are live. DVs, cash advances and reports still show sample data.</div>
         </div>
     </aside>
     <div class="app-backdrop" data-ui-sidebar-close></div>
@@ -124,18 +175,18 @@
             <h1>@title</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a asp-controller="Dashboard" asp-action="Index">Portal</a></li>
+                    <li class="breadcrumb-item"><a asp-controller="Account" asp-action="Home">Portal</a></li>
                     @foreach (var c in crumbs) { <li class="breadcrumb-item">@c</li> }
                     <li class="breadcrumb-item active" aria-current="page">@title</li>
                 </ol>
             </nav>
         </div>
         <div class="app-content">
-            @if (User.UsingDefaultPassword() && !Is("Account", "ChangePassword"))
+            @if (User.UsingDefaultPassword())
             {
                 <div class="alert alert-warning d-flex align-items-center gap-2" role="alert">
                     <i class="bi bi-shield-exclamation"></i>
-                    <div>You are using the default admin password. <a class="alert-link" asp-controller="Account" asp-action="ChangePassword">Change it now</a> before other people use this system.</div>
+                    <div>You are using the default admin password. <a class="alert-link" asp-controller="Settings" asp-action="Account" asp-fragment="password">Change it now</a> before other people use this system.</div>
                 </div>
             }
             @if (TempData["ToastError"] is string toastError)
