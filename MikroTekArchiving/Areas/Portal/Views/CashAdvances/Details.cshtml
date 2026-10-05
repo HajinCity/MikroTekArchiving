@@ -34,7 +34,8 @@
                     <dt class="col-5 text-body-secondary fw-normal">Verified by</dt><dd class="col-7">Ercel C. Monternel<br /><small class="text-body-secondary">AO IV – Cash Unit</small></dd>
                 </dl>
                 <hr />
-                <div class="file-row border-0 py-0"><i class="bi bi-file-earmark-pdf ficon"></i><div class="flex-fill small"><div class="fw-semibold">MOOE Slip + CDR + Alphalist.pdf</div><div class="text-body-secondary">1.2 MB · scanned</div></div><a class="btn btn-sm btn-light" href="#"><i class="bi bi-eye"></i></a></div>
+                <div class="small text-body-secondary mb-1">Scanned documents <span class="text-body-tertiary">(MOOE slip, CDR, Alphalist)</span></div>
+                <partial name="_Files" model="@((MikroTek.Archiving.Areas.Portal.Models.FilesPanel)ViewData["Files"]!)" />
             </div>
         </div>
     </div>

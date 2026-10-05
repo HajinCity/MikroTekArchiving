@@ -1,12 +1,15 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MikroTek.Archiving.Areas.Portal.Helpers;
+using MikroTek.Archiving.Areas.Portal.Models;
 using MikroTek.Archiving.Areas.Portal.TemplateData;
+using MikroTek.Domain;
+using MikroTek.Services.Interface;
 using MikroTek.Services.Utils;
 
 namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
 [Permission(Permissions.VouchersView)]
-public class VouchersController : PortalControllerBase
+public class VouchersController(IArchiveFiles files) : PortalControllerBase
 {
     public IActionResult Index(string? q, string? dept, string? status, int? ca)
     {
@@ -21,7 +24,13 @@ public class VouchersController : PortalControllerBase
         return View(list.OrderByDescending(v => v.Date).ThenByDescending(v => v.DvNo).ToList());
     }
 
-    public IActionResult Details(int id) => View(SampleData.Voucher(id));
+    public async Task<IActionResult> Details(int id)
+    {
+        var dv = SampleData.Voucher(id);
+        ViewData["Files"] = new FilesPanel(FileOwner.Voucher, dv.Id, await files.GetForOwnerAsync(FileOwner.Voucher, dv.Id),
+            CanEdit: User.Can(Permissions.VouchersEncode));
+        return View(dv);
+    }
 
     // ── Scan-first flow ───────────────────────────────────────────────
     // 1. Upload the scanned packet → a Draft DV is created with the file attached.
@@ -53,9 +62,6 @@ public class VouchersController : PortalControllerBase
 
     [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.VouchersEncode)]
     public IActionResult SaveChecklist(int id) => TemplateSaved("Checklist updated", nameof(Details), new { id });
-
-    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.VouchersEncode)]
-    public IActionResult AddFiles(int id) => TemplateSaved("File uploaded", nameof(Details), new { id });
 
     /// <summary>Printable archive record: DV details + checklist cover sheet.</summary>
     public IActionResult Print(int id) => View(SampleData.Voucher(id));

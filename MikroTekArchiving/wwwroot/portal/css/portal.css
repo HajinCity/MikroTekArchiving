@@ -139,8 +139,12 @@
 .ocr-field-read { border-color: #9fd3b3; }
 .ocr-field-suggested { border-color: #9db5e0; }
 .ocr-field-missing { border-color: #f0b54a; background: color-mix(in srgb, #f0b54a 8%, var(--bs-body-bg)); }
-.scan-viewer { position: sticky; top: calc(var(--app-topbar-h) + 1rem); }
-.scan-stage { height: 62vh; overflow: auto; background: #5b6474; padding: .75rem; text-align: center; }
+/* The scan and its page list stay in view together while the form on the right scrolls.
+   (Only when the two columns are side by side; the whole left side scrolls inside itself if it is taller than the screen.) */
+@media (min-width: 1200px) {
+    .scan-side { position: sticky; top: calc(var(--app-topbar-h) + 1rem); max-height: calc(100vh - var(--app-topbar-h) - 2rem); overflow-y: auto; }
+}
+.scan-stage { height: 56vh; overflow: auto; background: #5b6474; padding: .75rem; text-align: center; }
 .scan-stage img { width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.35); background: #fff; }
 .scan-thumbs { display: flex; gap: .5rem; overflow-x: auto; padding: .6rem; border-top: 1px solid var(--line); background: var(--app-surface-2); }
 .thumb { position: relative; flex: none; width: 56px; padding: 0; border: 2px solid transparent; border-radius: 6px; background: #fff; }
@@ -161,3 +165,14 @@
 .roles-table .form-check-input { width: 1.25rem; height: 1.25rem; margin: 0; cursor: pointer; }
 .roles-table .form-check-input:disabled { cursor: not-allowed; }
 .roles-table tbody tr:not(.roles-group):hover > * { background: var(--bs-tertiary-bg); }
+
+/* ---------- Uploaded documents (shared _Files partial) ---------- */
+.file-row .file-name { font-weight: 600; overflow-wrap: anywhere; }
+.file-row .file-actions { display: flex; gap: .25rem; flex: none; }
+.file-row:last-of-type { border-bottom: 0; }
+.files-empty { padding: 1rem; text-align: center; color: var(--bs-secondary-color); border: 1px dashed var(--line); border-radius: 10px; }
+.file-viewer .modal-body { padding: 0; background: #5b6474; height: 82vh; }
+.file-viewer iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+.file-viewer .file-viewer-img { height: 100%; overflow: auto; display: grid; place-items: center; padding: .75rem; }
+.file-viewer .file-viewer-img img { max-width: 100%; height: auto; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35); }
+.uacs-inactive td { color: var(--bs-secondary-color); }

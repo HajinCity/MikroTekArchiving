@@ -40,6 +40,30 @@ namespace MikroTek.Services.DAL
                                    Status = VoucherStatus.Disabled });
             }
 
+            // The accounts the school already uses. More are added in Setup → UACS Accounts.
+            if (!await db.UacsAccounts.AnyAsync())
+            {
+                (string Code, string Title, AccountGroup Group)[] accounts =
+                [
+                    ("1990101000", "Advances for Operating Expenses", AccountGroup.Asset),
+                    ("1040502000", "Semi-Expendable Office Equipment (Inventory)", AccountGroup.Asset),
+                    ("2020101000", "Due to BIR", AccountGroup.Liability),
+                    ("5020101000", "Traveling Expenses - Local", AccountGroup.Expense),
+                    ("5020301000", "Office Supplies Expenses", AccountGroup.Expense),
+                    ("5020321002", "Semi-Expendable Office Equipment", AccountGroup.Expense),
+                    ("5020321003", "Semi-Expendable ICT Equipment", AccountGroup.Expense),
+                    ("5020321008", "Semi-Expendable DRR Equipment", AccountGroup.Expense),
+                    ("5020399000", "Other Supplies and Materials Expenses", AccountGroup.Expense),
+                    ("5020402000", "Electricity Expenses", AccountGroup.Expense),
+                    ("5020503000", "Internet Subscription Expenses", AccountGroup.Expense),
+                    ("5021299000", "Other General Services", AccountGroup.Expense),
+                    ("5021304002", "Repair and Maintenance - School Buildings", AccountGroup.Expense),
+                    ("5029904000", "Transportation and Delivery Expenses", AccountGroup.Expense)
+                ];
+                db.UacsAccounts.AddRange(accounts.Select(a => new UacsAccounts
+                    { Code = a.Code, Title = a.Title, Group = a.Group, CreatedAt = DateTime.Now }));
+            }
+
             // The starting ticks of the Roles & Access page. Only added once: later changes are the admin's.
             if (!await db.RolePermissions.AnyAsync())
             {

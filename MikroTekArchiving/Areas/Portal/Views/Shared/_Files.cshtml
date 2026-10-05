@@ -1,0 +1,100 @@
+﻿@using MikroTek.Archiving.Areas.Portal.Models
+@model FilesPanel
+@*
+    The scanned documents of one voucher or cash advance: list, viewer, upload, remove.
+    Use:  <partial name="_Files" model="new FilesPanel(FileOwner.Voucher, id, files, canEdit)" />
+*@
+@if (Model.Files.Count == 0)
+{
+    <div class="files-empty small mb-3"><i class="bi bi-file-earmark-x me-1"></i>No scanned document uploaded yet.</div>
+}
+@foreach (var f in Model.Files)
+{
+    var url = Url.Action("Open", "Files", new { id = f.Id });
+    <div class="file-row">
+        <i class="bi @(f.IsPdf ? "bi-file-earmark-pdf" : "bi-file-earmark-image") ficon"></i>
+        <div class="flex-fill small">
+            <div class="file-name">@f.FileName</div>
+            <div class="text-body-secondary">@f.SizeText · uploaded@(f.UploadedBy is null ? "" : " by " + f.UploadedBy) · @f.UploadedAt.ToString("MMM d, yyyy h:mm tt")</div>
+        </div>
+        <div class="file-actions">
+            <button type="button" class="btn btn-sm btn-light" title="View" data-file-view="@url" data-file-name="@f.FileName" data-file-pdf="@(f.IsPdf ? "true" : "false")">
+                <i class="bi bi-eye"></i>@(Model.Compact ? "" : " View")
+            </button>
+            <a class="btn btn-sm btn-light" href="@url" target="_blank" rel="noopener" title="Open in a new tab"><i class="bi bi-box-arrow-up-right"></i></a>
+            <a class="btn btn-sm btn-light" asp-controller="Files" asp-action="Open" asp-route-id="@f.Id" asp-route-download="true" title="Download"><i class="bi bi-download"></i></a>
+            @if (Model.CanEdit)
+            {
+                <form asp-controller="Files" asp-action="Delete" asp-route-id="@f.Id" method="post" class="d-inline">
+                    <button class="btn btn-sm btn-light text-danger" title="Remove" data-ui-confirm="Remove &quot;@f.FileName&quot;? The file is deleted from the server and cannot be brought back."><i class="bi bi-trash"></i></button>
+                </form>
+            }
+        </div>
+    </div>
+}
+@if (Model.CanEdit)
+{
+    <form asp-controller="Files" asp-action="Upload" method="post" enctype="multipart/form-data" class="@(Model.Compact ? "mt-3" : "dropzone mt-3")" data-file-upload>
+        <input type="hidden" name="owner" value="@Model.Owner" />
+        <input type="hidden" name="ownerId" value="@Model.OwnerId" />
+        @if (!Model.Compact)
+        {
+            <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
+            <div class="fw-semibold text-body">Add scanned documents</div>
+            <div class="small mb-3">PDF, JPG or PNG · up to 100 MB each</div>
+        }
+        <div class="@(Model.Compact ? "input-group input-group-sm" : "d-flex flex-wrap justify-content-center gap-2")">
+            <input type="file" name="files" class="form-control @(Model.Compact ? "" : "w-auto")" multiple accept=".pdf,.jpg,.jpeg,.png" required aria-label="Choose files to upload" />
+            <button class="btn btn-primary @(Model.Compact ? "" : "btn-sm")"><i class="bi bi-upload me-1"></i>Upload</button>
+        </div>
+        @if (Model.Compact) { <div class="form-text">PDF, JPG or PNG · up to 100 MB each</div> }
+    </form>
+}
+
+<!-- Viewer: the document opens here, on top of the page -->
+<div class="modal fade file-viewer" id="fileViewer" tabindex="-1" aria-labelledby="fileViewerTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h2 class="modal-title h6 text-truncate" id="fileViewerTitle">Document</h2>
+                <a class="btn btn-sm btn-light ms-auto me-2 text-nowrap" target="_blank" rel="noopener" data-viewer-newtab><i class="bi bi-box-arrow-up-right me-1"></i>Open in a new tab</a>
+                <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" data-viewer-body></div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const el = document.getElementById("fileViewer"), body = el.querySelector("[data-viewer-body]");
+    const modal = new bootstrap.Modal(el);
+    document.querySelectorAll("[data-file-view]").forEach(b => b.addEventListener("click", () => {
+        const url = b.dataset.fileView;
+        document.getElementById("fileViewerTitle").textContent = b.dataset.fileName;
+        el.querySelector("[data-viewer-newtab]").href = url;
+        body.replaceChildren();
+        if (b.dataset.filePdf === "true") {
+            const frame = document.createElement("iframe");
+            frame.src = url; frame.title = b.dataset.fileName;
+            body.append(frame);
+        } else {
+            const wrap = document.createElement("div"), img = document.createElement("img");
+            wrap.className = "file-viewer-img"; img.src = url; img.alt = b.dataset.fileName;
+            wrap.append(img); body.append(wrap);
+        }
+        modal.show();
+    }));
+    // Free the document when the viewer closes.
+    el.addEventListener("hidden.bs.modal", () => body.replaceChildren());
+    // Show "Uploading…" so a big scan is not sent twice.
+    document.querySelectorAll("[data-file-upload]").forEach(f => f.addEventListener("submit", () => {
+        const btn = f.querySelector("button");
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading…';
+    }));
+    // Coming back after an upload: open the "Scanned files" tab again.
+    if (location.hash === "#tab-files") {
+        const tab = document.querySelector('[data-bs-target="#tab-files"]');
+        if (tab) bootstrap.Tab.getOrCreateInstance(tab).show();
+    }
+});
+</script>

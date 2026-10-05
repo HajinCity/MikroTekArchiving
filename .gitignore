@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Scanned documents uploaded while testing (kept on the server, not in git)
+**/App_Data/uploads/

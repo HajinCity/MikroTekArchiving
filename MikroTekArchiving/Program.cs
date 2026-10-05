@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using MikroTek.Archiving.Areas.Portal.Helpers;
 using MikroTek.Common;
 using MikroTek.Services;
+using MikroTek.Services.DTO;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +53,18 @@ builder.Services.AddDataProtection()
 var maxUploadBytes = builder.Configuration.GetValue("Uploads:MaxMegabytes", 200L) * 1024 * 1024;
 builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = maxUploadBytes);
 builder.Services.Configure<FormOptions>(f => f.MultipartBodyLengthLimit = maxUploadBytes);
+
+// Where the scanned documents are kept: App_Data/uploads beside the app, unless "Uploads:Folder"
+// in appsettings points somewhere else (for example a bigger drive: "D:\\DvArchive").
+// Back this folder up together with the database.
+var uploadsFolder = builder.Configuration["Uploads:Folder"];
+builder.Services.AddSingleton(new UploadOptions
+{
+    Folder = string.IsNullOrWhiteSpace(uploadsFolder)
+        ? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "uploads")
+        : uploadsFolder,
+    MaxFileBytes = builder.Configuration.GetValue("Uploads:MaxFileMegabytes", 100L) * 1024 * 1024
+});
 
 var app = builder.Build();
 

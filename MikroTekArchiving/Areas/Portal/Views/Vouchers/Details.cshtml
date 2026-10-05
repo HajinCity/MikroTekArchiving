@@ -3,6 +3,7 @@
     ViewData["Title"] = Model.DvNo;
     ViewData["Crumb"] = "Disbursements / DV Archive";
     var ca = SampleData.CashAdvance(Model.CashAdvanceId);
+    var files = (MikroTek.Archiving.Areas.Portal.Models.FilesPanel)ViewData["Files"]!;
 }
 <div class="page-actions">
     <span class="dept dept-@Model.Dept">@Model.Dept</span>
@@ -23,7 +24,7 @@
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dv" type="button">Voucher</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-charts" type="button"><i class="bi bi-bar-chart-line me-1"></i>Charts</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-check" type="button">Checklist <span class="badge text-bg-light">@Model.DocsDone/@Model.Checklist.Count</span></button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button">Scanned files <span class="badge text-bg-light">@Model.Attachments</span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button">Scanned files <span class="badge text-bg-light">@files.Files.Count</span></button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-log" type="button">History</button></li>
         </ul>
         <div class="tab-content">
@@ -121,24 +122,7 @@
             <div class="tab-pane fade" id="tab-files">
                 <div class="card">
                     <div class="card-body">
-                        @if (User.Can(Permissions.VouchersEncode))
-                        {
-                        <form asp-action="AddFiles" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="dropzone mb-3">
-                            <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
-                            <div class="fw-semibold text-body">Drop the scanned DV packet here</div>
-                            <div class="small mb-3">PDF, JPG or PNG · up to 100 MB each</div>
-                            <input type="file" name="files" class="form-control w-auto mx-auto" multiple accept=".pdf,.jpg,.jpeg,.png" />
-                            <button class="btn btn-primary btn-sm mt-3"><i class="bi bi-upload me-1"></i>Upload</button>
-                        </form>
-                        }
-                        <div class="file-row"><i class="bi bi-file-earmark-pdf ficon"></i><div class="flex-fill"><div class="fw-semibold">@(Model.DvNo).pdf</div><div class="small text-body-secondary">Complete DV packet · uploaded by avillegas · @Fmt.Date(Model.PaidDate)</div></div>
-                            <a class="btn btn-sm btn-light" href="#"><i class="bi bi-eye"></i> View</a>
-                            <a class="btn btn-sm btn-light" href="#"><i class="bi bi-download"></i></a></div>
-                        <div class="ratio ratio-4x3 mt-3 border rounded bg-light d-flex">
-                            <div class="d-grid place-items-center text-center text-body-secondary" style="display:grid;place-items:center">
-                                <div><i class="bi bi-file-earmark-pdf fs-1 d-block"></i>PDF preview appears here once files are stored.</div>
-                            </div>
-                        </div>
+                        <partial name="_Files" model="files" />
                     </div>
                 </div>
             </div>

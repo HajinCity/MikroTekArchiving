@@ -8,13 +8,24 @@ using MikroTek.Services.Utils;
 namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
 /// <summary>Reference data: payees, UACS accounts, fund budgets, checklist templates, school profile.</summary>
-public class SetupController(IFundBudgets budgets) : PortalControllerBase
+public class SetupController(IFundBudgets budgets, IUacsAccounts accounts) : PortalControllerBase
 {
     [Permission(Permissions.SetupPayees)]
     public IActionResult Payees() => View(SampleData.Payees);
 
+    // ---------------------------------------------------------------- UACS accounts (real data)
+
     [Permission(Permissions.SetupAccounts)]
-    public IActionResult Accounts() => View(SampleData.Accounts);
+    public async Task<IActionResult> Accounts() => View(await accounts.GetAllAsync());
+
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupAccounts)]
+    public async Task<IActionResult> SaveAccount(SaveUacsAccountRequest request)
+    {
+        var result = await accounts.SaveAsync(request, User.UserId());
+        if (result.Success) Toast(request.Id == 0 ? "Account added." : "Changes to the account saved.");
+        else ToastError(result.Error!);
+        return RedirectToAction(nameof(Accounts));
+    }
 
     [Permission(Permissions.SetupChecklists)]
     public IActionResult Checklists() => View(SampleData.Templates);
@@ -32,7 +43,6 @@ public class SetupController(IFundBudgets budgets) : PortalControllerBase
         var needed = back switch
         {
             nameof(Payees) => Permissions.SetupPayees,
-            nameof(Accounts) => Permissions.SetupAccounts,
             nameof(Checklists) or nameof(Checklist) => Permissions.SetupChecklists,
             nameof(School) => Permissions.SetupSchool,
             _ => null

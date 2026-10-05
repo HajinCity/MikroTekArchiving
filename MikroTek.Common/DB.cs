@@ -14,6 +14,8 @@ namespace MikroTek.Common
         public DbSet<HotspotSessions> HotspotSessions => Set<HotspotSessions>();
         public DbSet<FundBudgets> FundBudgets => Set<FundBudgets>();
         public DbSet<RolePermissions> RolePermissions => Set<RolePermissions>();
+        public DbSet<UacsAccounts> UacsAccounts => Set<UacsAccounts>();
+        public DbSet<ArchiveFiles> ArchiveFiles => Set<ArchiveFiles>();
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -42,6 +44,23 @@ namespace MikroTek.Common
                 r.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
                 r.Property(x => x.Permission).HasMaxLength(50).IsRequired();
                 r.HasIndex(x => new { x.Role, x.Permission }).IsUnique();
+            });
+
+            b.Entity<UacsAccounts>(a =>
+            {
+                a.Property(x => x.Code).HasMaxLength(10).IsRequired();
+                a.HasIndex(x => x.Code).IsUnique();
+                a.Property(x => x.Title).HasMaxLength(150).IsRequired();
+                a.Property(x => x.Group).HasConversion<string>().HasMaxLength(20);
+            });
+
+            b.Entity<ArchiveFiles>(f =>
+            {
+                f.Property(x => x.FileName).HasMaxLength(255).IsRequired();
+                f.Property(x => x.StoredName).HasMaxLength(100).IsRequired();
+                f.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+                f.Property(x => x.OwnerType).HasConversion<string>().HasMaxLength(20);
+                f.HasIndex(x => new { x.OwnerType, x.OwnerId });
             });
 
             b.Entity<Plans>(p =>

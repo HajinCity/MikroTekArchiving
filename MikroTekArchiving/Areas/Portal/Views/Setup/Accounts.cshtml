@@ -1,20 +1,109 @@
-@model List<UacsRow>
-@{ ViewData["Title"] = "UACS Accounts"; ViewData["Crumb"] = "Setup"; }
+﻿@using MikroTek.Domain
+@using MikroTek.Services.DTO
+@model List<UacsAccountDto>
+@{
+    ViewData["Title"] = "UACS Accounts";
+    ViewData["Crumb"] = "Setup";
+    // Expense is the long list, so it gets the full width; the others share a row.
+    var groups = Model.GroupBy(a => a.Group).OrderBy(g => g.Key).ToList();
+}
 <div class="page-actions">
     <div class="me-auto text-body-secondary">Chart of accounts (Unified Accounts Code Structure) used in DV accounting entries and the Cash Disbursements Register.</div>
-    <button class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Account</button>
+    <button class="btn btn-primary" type="button" data-account-add><i class="bi bi-plus-lg me-1"></i>Add Account</button>
 </div>
+@if (Model.Count == 0)
+{
+    <div class="card"><div class="card-body text-center text-body-secondary p-5"><i class="bi bi-journal-text fs-1 d-block mb-2"></i>No accounts yet. Click <b>Add Account</b> to add the first one.</div></div>
+}
 <div class="row g-3">
-    @foreach (var g in Model.GroupBy(a => a.Group))
+    @foreach (var g in groups)
     {
-        <div class="col-lg-@(g.Key == "Expense" ? "12" : "6")">
+        <div class="col-lg-@(g.Key == AccountGroup.Expense || groups.Count == 1 ? "12" : "6")">
             <div class="card">
                 <div class="card-header">@g.Key accounts <span class="sub">(@g.Count())</span></div>
-                <table class="table table-portal">
-                    <thead><tr><th style="width:170px">UACS Code</th><th>Account Title</th><th style="width:90px"></th></tr></thead>
-                    <tbody>@foreach (var a in g) { <tr><td class="mono fw-semibold">@a.Code</td><td>@a.Title</td><td class="text-end"><button class="btn btn-sm btn-light"><i class="bi bi-pencil"></i></button></td></tr> }</tbody>
+                <div class="table-responsive">
+                <table class="table table-portal mb-0">
+                    <thead><tr><th style="width:170px">UACS Code</th><th>Account Title</th><th style="width:110px">Status</th><th style="width:70px"></th></tr></thead>
+                    <tbody>
+                        @foreach (var a in g)
+                        {
+                            <tr class="@(a.IsActive ? "" : "uacs-inactive")">
+                                <td class="mono fw-semibold">@a.Code</td>
+                                <td>@a.Title</td>
+                                <td>@if (a.IsActive) { <span class="badge-status st-complete">In use</span> } else { <span class="badge-status st-closed">Not in use</span> }</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-light" type="button" title="Edit @a.Code" data-account-edit
+                                            data-id="@a.Id" data-code="@a.Code" data-title="@a.Title" data-group="@a.Group" data-active="@(a.IsActive ? "true" : "false")"><i class="bi bi-pencil"></i></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
                 </table>
+                </div>
             </div>
         </div>
     }
 </div>
+
+<!-- Add / edit -->
+<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" asp-action="SaveAccount" method="post">
+            <div class="modal-header"><h2 class="modal-title h5" id="accountModalTitle">Add account</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="Id" value="0" />
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label" for="aCode">UACS code</label>
+                        <input id="aCode" name="Code" class="form-control mono" inputmode="numeric" maxlength="14" pattern="[0-9 \-]*" placeholder="5020301000" autocomplete="off" required />
+                        <div class="form-text">10 digits.</div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="aGroup">Group</label>
+                        <select id="aGroup" name="Group" class="form-select">
+                            @foreach (var grp in Enum.GetValues<AccountGroup>()) { <option value="@grp">@grp</option> }
+                        </select>
+                        <div class="form-text">Chosen from the first digit; change it if needed.</div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="aTitle">Account title</label>
+                    <input id="aTitle" name="Title" class="form-control" maxlength="150" placeholder="e.g. Office Supplies Expenses" required />
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="aActive" name="IsActive" value="true" checked />
+                    <input type="hidden" name="IsActive" value="false" />
+                    <label class="form-check-label" for="aActive">In use (shown in the pick lists when encoding a DV)</label>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const el = document.getElementById("accountModal"), f = el.querySelector("form"), modal = new bootstrap.Modal(el);
+    const groupByDigit = { "1": "Asset", "2": "Liability", "3": "Equity", "4": "Income", "5": "Expense" };
+    function open(d) {
+        const isNew = !d;
+        document.getElementById("accountModalTitle").textContent = isNew ? "Add account" : "Edit account " + d.code;
+        f.elements["Id"].value = isNew ? "0" : d.id;
+        f.elements["Code"].value = isNew ? "" : d.code;
+        f.elements["Title"].value = isNew ? "" : d.title;
+        f.elements["Group"].value = isNew ? "Expense" : d.group;
+        document.getElementById("aActive").checked = isNew ? true : d.active === "true";
+        modal.show();
+    }
+    document.querySelector("[data-account-add]").addEventListener("click", () => open(null));
+    document.querySelectorAll("[data-account-edit]").forEach(b => b.addEventListener("click", () => open(b.dataset)));
+    el.addEventListener("shown.bs.modal", () => f.elements["Code"].focus());
+    // The first digit of a UACS code tells its group.
+    f.elements["Code"].addEventListener("input", e => {
+        const g = groupByDigit[e.target.value.trim().charAt(0)];
+        if (g) f.elements["Group"].value = g;
+    });
+})();
+</script>
+}

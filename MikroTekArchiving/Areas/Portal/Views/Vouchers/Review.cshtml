@@ -1,4 +1,4 @@
-@model ScanResult
+﻿@model ScanResult
 @{
     ViewData["Title"] = "Review Scanned DV";
     ViewData["Crumb"] = "Disbursements / New DV";
@@ -35,6 +35,7 @@
 <div class="row g-3">
     <!-- LEFT: the scan -->
     <div class="col-xl-6">
+        <div class="scan-side">
         <div class="card scan-viewer">
             <div class="card-header d-flex align-items-center gap-2">
                 <span>Scan</span>
@@ -67,6 +68,7 @@
                     </button>
                 }
             </div>
+        </div>
         </div>
     </div>
 
