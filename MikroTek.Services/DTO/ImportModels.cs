@@ -112,7 +112,13 @@ namespace MikroTek.Services.DTO
         public decimal? Net { get; set; }
         public List<string> Unsure { get; set; } = [];
         public List<string> Notes { get; set; } = [];
+        /// <summary>The ticks read from the cover sheet for the chosen type's checklist: Label → "✓", "NA" or "" (not read).</summary>
+        public List<DvScanMark> Checklist { get; set; } = [];
+        /// <summary>What each page was taken to be, for checking a reading that went wrong.</summary>
+        public List<string> PageKinds { get; set; } = [];
     }
+
+    public record DvScanMark(string Label, string Mark);
 
     public record DvScanLine(string? Code, string? Title, decimal? Amount, string? Flag);
 }

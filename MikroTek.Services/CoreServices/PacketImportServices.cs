@@ -50,7 +50,7 @@ namespace MikroTek.Services.CoreServices
         {
             var problem = await _tesseract.CheckAsync();
             return problem is null
-                ? new ScanReaderStatus(true, "The scan reader (Tesseract) is installed on the server.")
+                ? new ScanReaderStatus(true, "The scan reader (Tesseract) is ready.")
                 : new ScanReaderStatus(false, problem);
         }
 
@@ -70,7 +70,7 @@ namespace MikroTek.Services.CoreServices
 
             var status = await GetStatusAsync();
             if (!status.Ready)
-                return (ServiceResult.Fail("The scan reader is not installed on the server yet, so files cannot be read. " + status.Message), null);
+                return (ServiceResult.Fail("The scan reader cannot start on this server, so files cannot be read. " + status.Message), null);
 
             RemoveOldDrafts();
             if (!await ScanGate.One.WaitAsync(ScanGate.Wait))

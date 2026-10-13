@@ -17,6 +17,12 @@ namespace MikroTek.Services.Interface
         Task<ServiceResult> SaveAsync(SaveChecklistTemplateRequest request, long byUserId);
         /// <summary>DVs already encoded keep their own copy of the checklist.</summary>
         Task<ServiceResult> DeleteAsync(long id, long byUserId);
+
+        /// <summary>
+        /// Puts back the standard checklists: a missing one is added; one with the same name gets the standard documents
+        /// it lacks (its own extra documents are kept, after them). Returns how many were added and completed.
+        /// </summary>
+        Task<(int Added, int Completed)> RestoreStandardAsync(long byUserId);
     }
 
     /// <summary>School details and signatories printed on reports (Setup → School &amp; Signatories).</summary>

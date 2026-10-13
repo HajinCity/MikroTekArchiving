@@ -366,6 +366,17 @@ namespace MikroTek.Services.Ocr
             return true;
         }
 
+        /// <summary>How many pixels of writing are in a rectangle (pen of any colour too, when withColour).</summary>
+        public int InkCount(int left, int top, int right, int bottom, bool withColour)
+        {
+            left = Math.Clamp(left, 0, Width); right = Math.Clamp(right, 0, Width);
+            top = Math.Clamp(top, 0, Height); bottom = Math.Clamp(bottom, 0, Height);
+            var ink = withColour ? _inkWithColour : _ink;
+            var n = 0;
+            for (var y = top; y < bottom; y++) for (var x = left; x < right; x++) if (ink[y * Width + x]) n++;
+            return n;
+        }
+
         // ------------------------------------------------------------------ forms (DV): rows whose cells differ row by row
 
         public record TextLine(int Top, int Bottom);

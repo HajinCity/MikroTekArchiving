@@ -11,6 +11,9 @@ namespace MikroTek.Services.CoreServices
 {
     public class DvScanServices : CoreServices, IDvScan
     {
+        /// <summary>Changed when the reader reads differently, so earlier readings are read again.</summary>
+        private const string ReaderVersion = "3";
+
         private readonly DvScanReader _reader;
         private readonly TesseractRunner _tesseract;
         private readonly UploadOptions _uploads;
@@ -38,7 +41,10 @@ namespace MikroTek.Services.CoreServices
 
             // The same files read before: the earlier reading (kept beside the uploads) is returned at once.
             var cacheFolder = Path.Combine(_uploads.Folder, "ocr");
-            var cache = Path.Combine(cacheFolder, $"dv-{voucherId}-{string.Join("-", scans.Select(s => s.Id).OrderBy(i => i))}.json");
+            // The key names the exact files (and the reader's version), so a reading is never reused for other files.
+            var key = string.Join("|", scans.OrderBy(s => s.Id).Select(s => $"{s.Id}:{s.SizeBytes}:{s.UploadedAt.Ticks}")) + "|" + ReaderVersion;
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)))[..16];
+            var cache = Path.Combine(cacheFolder, $"dv-{voucherId}-{hash}.json");
             if (!again && File.Exists(cache))
             {
                 try { return JsonSerializer.Deserialize<DvScanResult>(await File.ReadAllTextAsync(cache)) ?? new DvScanResult(); }
@@ -47,7 +53,7 @@ namespace MikroTek.Services.CoreServices
 
             var problem = await _tesseract.CheckAsync();
             if (problem is not null)
-                return new DvScanResult { Message = "The scan reader is not installed on the server yet, so the details cannot be filled in automatically. " + problem };
+                return new DvScanResult { Message = "The scan reader cannot start on this server, so the details cannot be filled in automatically. " + problem };
 
             if (!await ScanGate.One.WaitAsync(ScanGate.Wait))
                 return new DvScanResult { Message = "The server is busy reading another scan. Press \"Read the scan\" again in a minute." };
@@ -80,7 +86,7 @@ namespace MikroTek.Services.CoreServices
 
             var accounts = (await _accounts.GetAllAsync()).Where(a => a.IsActive).Select(a => new PacketParser.Account(a.Code, a.Title)).ToList();
             var payees = (await _payees.GetAllAsync()).Select(p => new PacketParser.KnownPayee(p.Name, p.Tin, p.Address, p.TaxType)).ToList();
-            var templates = (await _templates.GetAllAsync()).Where(t => t.IsActive).Select(t => new DvScanParser.Template(t.Id, t.Name)).ToList();
+            var templates = (await _templates.GetAllAsync()).Where(t => t.IsActive).Select(t => new DvScanParser.Template(t.Id, t.Name, t.Items)).ToList();
             var result = DvScanParser.Parse(pages, accounts, payees, templates);
             result.Seconds = Math.Round(clock.Elapsed.TotalSeconds, 1);
 

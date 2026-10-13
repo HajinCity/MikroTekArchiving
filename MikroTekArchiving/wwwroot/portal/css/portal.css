@@ -138,6 +138,7 @@
 [data-bs-theme="dark"] .ocr-read { color: #6fd08c; } [data-bs-theme="dark"] .ocr-miss { color: #f0c060; }
 .ocr-field-read { border-color: #9fd3b3; }
 .ocr-field-suggested { border-color: #9db5e0; }
+.checklist .item.ocr-mark { background: color-mix(in srgb, #f0b54a 10%, transparent); border-radius: 6px; }
 .ocr-field-missing { border-color: #f0b54a; background: color-mix(in srgb, #f0b54a 8%, var(--bs-body-bg)); }
 /* The scan and its page list stay in view together while the form on the right scrolls.
    (Only when the two columns are side by side; the whole left side scrolls inside itself if it is taller than the screen.) */

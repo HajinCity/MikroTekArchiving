@@ -12,11 +12,21 @@
     <PackageReference Include="PdfPig" Version="0.1.16" />
     <PackageReference Include="SkiaSharp" Version="4.153.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MikroTek.Common\MikroTek.Common.csproj" />
     <ProjectReference Include="..\MikroTek.Domain\MikroTek.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- The scan reader's language files (English words, and "osd" to turn sideways pages upright).
+       Copied to "tessdata" beside the portal's files, where the built-in reader looks for them. -->
+  <ItemGroup>
+    <None Update="Ocr\tessdata\*.traineddata">
+      <Link>tessdata\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <!-- Empty folders are hidden in SDK-style projects unless listed here. -->

@@ -593,6 +593,19 @@
             const f = r.fields || {};
             // The type first: choosing it loads its checklist.
             if (fill("typeSelect", f.typeSelect, false)) { filled++; renderChecklist(); }
+            // The ticks and NAs read from the cover sheet, on documents not marked yet.
+            const marks = Object.fromEntries((r.checklist || []).filter(c => c.mark).map(c => [c.label, c.mark]));
+            document.querySelectorAll("#checklist .item").forEach(item => {
+                const mark = marks[item.querySelector("input[type=hidden]").value];
+                const current = item.querySelector("input[type=radio]:checked")?.value ?? "";
+                if (!mark || current !== "") return;
+                const radio = [...item.querySelectorAll("input[type=radio]")].find(x => x.value === mark);
+                if (!radio) return;
+                radio.checked = true;
+                item.classList.add("ocr-mark");
+                item.title = "Read from the cover sheet: compare with the paper";
+                filled++;
+            });
             for (const id of ["dvNo", "dvDate", "fundCluster", "payee", "tin", "orsBurs", "address", "particulars", "rc", "mfo",
                               "mode", "checkNo", "paidDate", "bank", "receivedBy", "jevNo"]) {
                 if (fill(id, f[id], unsure.has(id))) filled++;
@@ -613,7 +626,7 @@
             }
             update();
 
-            const toCheck = document.querySelectorAll("#dvForm .ocr-field-missing").length;
+            const toCheck = document.querySelectorAll("#dvForm .ocr-field-missing, #checklist .ocr-mark").length;
             text.innerHTML = `<b>${filled} field(s) filled from the scan</b> (page ${r.dvPage} of ${r.pageCount}).`
                 + (toCheck ? ` <span class="text-warning-emphasis">${toCheck} marked to check against the paper.</span>` : " Check them against the scan, then save.");
             notes.innerHTML = (r.notes || []).map(n => `<li>${esc(n)}</li>`).join("");

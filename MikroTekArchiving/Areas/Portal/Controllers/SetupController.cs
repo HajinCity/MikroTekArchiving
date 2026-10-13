@@ -71,6 +71,16 @@ public class SetupController(IFundBudgets budgets, IUacsAccounts accounts, IPaye
     }
 
     [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupChecklists)]
+    public async Task<IActionResult> RestoreChecklists()
+    {
+        var (added, completed) = await templates.RestoreStandardAsync(User.UserId());
+        Toast(added + completed == 0
+            ? "The standard checklists are all here already."
+            : $"Standard checklists restored: {added} added, {completed} completed with their documents.");
+        return RedirectToAction(nameof(Checklists));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.SetupChecklists)]
     public async Task<IActionResult> DeleteChecklist(long id)
     {
         var result = await templates.DeleteAsync(id, User.UserId());

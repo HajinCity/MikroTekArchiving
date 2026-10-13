@@ -10,12 +10,10 @@
             <div class="alert alert-warning" role="alert">
                 <div class="d-flex gap-2"><i class="bi bi-exclamation-triangle-fill"></i>
                     <div>
-                        <b>The scan reader is not installed on the server yet.</b> Packets cannot be read until it is.
+                        <b>The scan reader cannot start on this server yet.</b> Packets cannot be read until it does.
                         <div class="small mt-1">@Model.Status.Message</div>
-                        <div class="small mt-2">On the server PC: install <b>Tesseract OCR for Windows</b> (the free UB Mannheim installer) into
-                            <span class="mono">C:\Program Files\Tesseract-OCR</span> with the default options, then open this page again.
-                            If it is installed somewhere else, put the path of <span class="mono">tesseract.exe</span> in
-                            <span class="mono">appsettings.json → "Ocr": { "TesseractPath": "…" }</span>.</div>
+                        <div class="small mt-2 text-body-secondary">The reader is built into the portal (NuGet package "Tesseract" with its language files in the
+                            <span class="mono">tessdata</span> folder), so normally nothing has to be installed. Settings: <span class="mono">appsettings.json → "Ocr"</span>.</div>
                     </div>
                 </div>
             </div>

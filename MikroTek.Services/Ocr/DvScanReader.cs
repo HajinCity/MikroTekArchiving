@@ -8,6 +8,9 @@ namespace MikroTek.Services.Ocr
         public int Middle => (Top + Bottom) / 2;
     }
 
+    /// <summary>One line of the checklist cover sheet and the mark in its box: "✓", "NA" or "" (empty box / not a checklist line).</summary>
+    public record CoverLine(string Text, string Mark);
+
     /// <summary>Everything read from a scanned DV packet, before it is turned into the DV's fields.</summary>
     public class DvScanPages
     {
@@ -21,6 +24,12 @@ namespace MikroTek.Services.Ocr
         public int Dpi { get; set; }
         /// <summary>The text of the checklist cover sheet, when the packet has one.</summary>
         public string CoverText { get; set; } = "";
+        /// <summary>The cover sheet line by line, with the tick or NA in each box.</summary>
+        public List<CoverLine> CoverLines { get; set; } = [];
+        /// <summary>What each page was taken to be ("2 DV form (9)": page, kind, how many DV-form words were seen) — for checking.</summary>
+        public List<string> PageKinds { get; set; } = [];
+        /// <summary>The text of the photocopied check, when the packet has one (its check number is printed).</summary>
+        public string CheckText { get; set; } = "";
     }
 
     /// <summary>
@@ -29,7 +38,7 @@ namespace MikroTek.Services.Ocr
     /// </summary>
     public class DvScanReader(TesseractRunner tesseract, OcrOptions options)
     {
-        private enum Kind { Other, Dv, Cover }
+        private enum Kind { Other, Dv, Cover, Check }
 
         public async Task<DvScanPages> ReadAsync(IReadOnlyList<(byte[] Data, string Name)> files)
         {
@@ -41,19 +50,35 @@ namespace MikroTek.Services.Ocr
                 var pages = files.SelectMany(f => DocumentReader.PagePictures(f.Data, f.Name)).ToList();
                 result.PageCount = pages.Count;
                 result.Dpi = pages.Select(p => PageImage.Dpi(p)).DefaultIfEmpty(0).Max();
+                // Too small to read reliably (under about 120 dpi): better to say so than to fill in guesses.
+                if (result.Dpi is > 0 and < 120) return result;
 
-                // What each page is, a few pages at a time, until the DV form is found (the cover sheet comes before it).
-                (int Number, int Rotate)? dv = null;
-                for (var start = 0; start < pages.Count && dv is null; start += 4)
+                // What each page is, a few pages at a time, until the DV form is found (the cover sheet comes before it,
+                // the photocopied check usually right after it: one more batch is looked at for the check).
+                (int Number, int Rotate)? dv = null, cover = null;
+                var seen = new List<(int Number, Kind Kind, int Rotate, string Text, int Score, bool Title)>();
+                var extra = 1;
+                for (var start = 0; start < pages.Count && (dv is null || (result.CheckText.Length == 0 && extra-- > 0)); start += 4)
                 {
                     var batch = await Task.WhenAll(Enumerable.Range(start, Math.Min(4, pages.Count - start))
                         .Select(i => ClassifyAsync(pages[i], i + 1, work)));
                     foreach (var p in batch)
                     {
-                        if (p.Kind == Kind.Cover && result.CoverText.Length == 0) result.CoverText = p.Text;
+                        seen.Add(p);
+                        result.PageKinds.Add($"{p.Number} {p.Kind} ({p.Score})");
+                        if (p.Kind == Kind.Cover && cover is null) { result.CoverText = p.Text; cover = (p.Number, p.Rotate); }
                         if (p.Kind == Kind.Dv && dv is null) dv = (p.Number, p.Rotate);
+                        if (p.Kind == Kind.Check && result.CheckText.Length == 0) result.CheckText = p.Text;
                     }
                 }
+                // No page was clearly the DV form: the one that looks most like it, if it looks enough like it.
+                if (dv is null)
+                {
+                    var likely = seen.Where(p => p.Kind is Kind.Other or Kind.Dv && ((p.Title && p.Score >= 2) || p.Score >= 4))
+                        .OrderByDescending(p => p.Score + (p.Title ? 3 : 0)).FirstOrDefault();
+                    if (likely.Number > 0) dv = (likely.Number, likely.Rotate);
+                }
+                if (cover is not null) await ReadCoverAsync(pages[cover.Value.Number - 1], cover.Value.Rotate, work, result);
                 if (dv is null) return result;
 
                 result.DvPage = dv.Value.Number;
@@ -66,30 +91,92 @@ namespace MikroTek.Services.Ocr
             }
         }
 
-        private async Task<(int Number, Kind Kind, int Rotate, string Text)> ClassifyAsync(byte[] picture, int number, string work)
+        /// <summary>Words printed on the DV form (Appendix 32), allowing for the usual misreadings.</summary>
+        private static readonly string[] DvFormWords =
+        [
+            @"Appendix\s*3\s*2", @"Mode\s+of", @"Pay[ec]e\b", @"TIN\s*/?\s*Empl", @"Particulars", @"Fund\s*Cl", @"Amount\s*Due",
+            @"UACS", @"Certified", @"Printed\s*Name", @"Responsib", @"MFO", @"Account\w*\s+Entry|Accounting", @"Approved",
+            @"Receipt\s+of", @"Check\s*/?\s*ADA|ADA\s*No", @"JEV", @"Debit", @"Credit"
+        ];
+
+        private async Task<(int Number, Kind Kind, int Rotate, string Text, int Score, bool Title)> ClassifyAsync(byte[] picture, int number, string work)
         {
             var original = Path.Combine(work, $"c{number}.img");
             await File.WriteAllBytesAsync(original, picture);
             var rotate = await tesseract.DetectRotationAsync(original);
             var preview = Path.Combine(work, $"c{number}.png");
-            if (!PageImage.SavePreview(picture, rotate, preview, width: 1500)) return (number, Kind.Other, rotate, "");
+            if (!PageImage.SavePreview(picture, rotate, preview, width: 1800)) return (number, Kind.Other, rotate, "", 0, false);
             var text = await tesseract.ReadTextAsync(preview);
 
-            // The DV form: its title and at least two of its printed boxes (a cover sheet also says "Disbursement Voucher").
-            var formWords = new[] { @"Appendix\s*32", @"Mode\s+of\s+Payment", @"Accounting\s+Entry", @"Responsibility\s+Cent", @"Approved\s+for\s+Payment", @"Receipt\s+of\s+Payment", @"MFO\s*/?\s*PAP" }
+            // The DV form: its title and several of its printed boxes (a cover sheet also says "Disbursement Voucher",
+            // and other forms share a few of these words, but not many).
+            var title = Regex.IsMatch(text, @"DISB\w*\s*V[O0]UCH", RegexOptions.IgnoreCase);
+            var score = DvFormWords.Count(w => Regex.IsMatch(text, w, RegexOptions.IgnoreCase));
+            // A photocopied check: "PAY TO THE ORDER OF", "PESOS", the bank, and its printed check number.
+            var checkWords = new[] { @"PA[YV]\s*T[O0]", @"ORDER\s*[O0]F", @"PESOS", @"DBP|Development\s+Bank|LAND\s*BANK", @"CHECK\s*N[o0]", @"ACC[O0]UNT\s*(N[o0]|NAME)" }
                 .Count(w => Regex.IsMatch(text, w, RegexOptions.IgnoreCase));
-            var kind = Regex.IsMatch(text, @"DISBURSEMENT\s+VOUCHER", RegexOptions.IgnoreCase) && formWords >= 2
+            // The cover sheet: a list of supporting documents with boxes, "Remarks" and "Checked by".
+            var documentLines = text.Split('\n').Count(l => Regex.IsMatch(l,
+                @"Voucher|Receipt|Invoice|Report|Order|Certificat|Request|Payroll|Contract|Slip|Photos|Quotation|Resolution|Record|List|Timebook", RegexOptions.IgnoreCase));
+            var kind = (title && score >= 3) || score >= 6
                 ? Kind.Dv
-                : Regex.IsMatch(text, @"\bDV\s*[#No.]{1,3}\s*:", RegexOptions.IgnoreCase) && Regex.IsMatch(text, @"Check(ed)?\s*by|Remarks", RegexOptions.IgnoreCase)
-                    ? Kind.Cover
-                    : Kind.Other;
+                : checkWords >= 2 && Regex.IsMatch(text, @"\b\d{8,12}\b")
+                    ? Kind.Check
+                    : (Regex.IsMatch(text, @"\bDV\s*[#No.]{1,3}\s*:", RegexOptions.IgnoreCase) || Regex.IsMatch(text, @"Remarks", RegexOptions.IgnoreCase))
+                      && (Regex.IsMatch(text, @"Check(ed)?\s*by", RegexOptions.IgnoreCase) || documentLines >= 4)
+                        ? Kind.Cover
+                        : Kind.Other;
             // The cover sheet's title line ("JOB ORDER - …", often highlighted) is read better as lines of different sizes.
             if (kind == Kind.Cover)
             {
                 var large = Path.Combine(work, $"c{number}-large.png");
                 if (PageImage.SavePreview(picture, rotate, large, width: 2400)) text += "\n" + await tesseract.ReadTextAsync(large, layout: 4);
             }
-            return (number, kind, rotate, text);
+            return (number, kind, rotate, text, score, title);
+        }
+
+        /// <summary>
+        /// The cover sheet line by line (with where each line starts), and the mark in the box left of each line:
+        /// a tick or "NA" by pen. The box is the space just left of where the printed words start.
+        /// </summary>
+        private async Task ReadCoverAsync(byte[] picture, int rotate, string work, DvScanPages result)
+        {
+            var image = PageImage.Load(picture, rotate, scale: null);
+            var clean = Path.Combine(work, "cover-clean.png");
+            const int pad = 20;   // SaveRegion adds a white margin of 20 dots
+            if (!image.SaveRegion(clean, 0, 0, image.Width, image.Height, minInk: 100)) return;
+            var words = await tesseract.ReadWordsAsync(clean);
+
+            var lines = words.GroupBy(w => w.Line)
+                .Select(g =>
+                {
+                    var list = g.OrderBy(w => w.Left).ToList();
+                    // Where the printed words start: the first word with letters (stray marks before it are not words).
+                    var first = list.FirstOrDefault(w => Regex.IsMatch(w.Text, "[A-Za-z]{3}")) ?? list[0];
+                    var text = string.Join(" ", list.SkipWhile(w => w != first).Select(w => w.Text));
+                    return (Text: text, Left: first.Left - pad, Top: list.Min(w => w.Top) - pad, Bottom: list.Max(w => w.Top + w.Height) - pad);
+                })
+                .Where(l => l.Text.Length >= 3).OrderBy(l => l.Top).ToList();
+            if (lines.Count == 0) return;
+
+            // The list's words all start at the same place; the boxes are just left of it.
+            var starts = lines.Select(l => l.Left).Where(x => x < image.Width * 0.45).OrderBy(x => x).ToList();
+            var labelStart = starts.Count == 0 ? 0 : starts[starts.Count / 2];
+            int boxLeft = (int)(labelStart - image.Width * 0.08), boxRight = (int)(labelStart - image.Width * 0.006);
+
+            // A tick is one stroke; "NA" is two letters, about three times the ink of a tick.
+            var found = new string[lines.Count];
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var l = lines[i];
+                found[i] = "";
+                if (Math.Abs(l.Left - labelStart) > image.Width * 0.03 || boxLeft < 0) continue;   // not a line of the list
+                int h = l.Bottom - l.Top, top = l.Top + h / 6, bottom = l.Bottom - h / 6;
+                var ink = image.InkCount(boxLeft, top, boxRight, bottom, withColour: true) / (h * image.Scale);
+                found[i] = ink < 1.5 ? "" : ink >= 8.5 ? "NA" : "✓";
+            }
+
+            result.CoverLines = lines.Select((l, i) => new CoverLine(l.Text, found[i])).ToList();
         }
 
         private async Task ReadFormAsync(byte[] picture, int rotate, string work, DvScanPages result)

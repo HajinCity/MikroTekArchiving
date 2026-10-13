@@ -82,6 +82,41 @@ namespace MikroTek.Services.CoreServices
             return ServiceResult.Ok();
         }
 
+        public async Task<(int Added, int Completed)> RestoreStandardAsync(long byUserId)
+        {
+            static string Key(string s) => Clean(s).ToUpperInvariant();
+            _templates.UserId = byUserId;
+            var all = await _templates.GetAllWithItemsAsync();
+            int added = 0, completed = 0;
+            foreach (var (name, items) in StandardChecklists.All)
+            {
+                var existing = all.FirstOrDefault(t => Key(t.Name) == Key(name));
+                if (existing is null)
+                {
+                    var template = new ChecklistTemplates { Name = name, IsActive = true };
+                    for (var i = 0; i < items.Length; i++)
+                        template.Items.Add(new ChecklistTemplateItems { SortOrder = i + 1, Label = items[i] });
+                    _templates.Add(template);
+                    added++;
+                    continue;
+                }
+
+                var current = existing.Items.OrderBy(i => i.SortOrder).Select(i => i.Label).ToList();
+                var wanted = items.Concat(current.Where(c => !items.Any(s => Key(s) == Key(c)))).ToList();
+                if (wanted.Select(Key).SequenceEqual(current.Select(Key))) continue;
+
+                var edit = await _templates.GetForEditWithItemsAsync(existing.Id);
+                if (edit is null) continue;
+                edit.Items.Clear();
+                for (var i = 0; i < wanted.Count; i++)
+                    edit.Items.Add(new ChecklistTemplateItems { SortOrder = i + 1, Label = wanted[i] });
+                completed++;
+            }
+            if (added + completed > 0) await _templates.SaveChangesAsync();
+            _logger.WriteLog(Level.Info, LogType.Activity, $"User {byUserId} restored the standard checklists ({added} added, {completed} completed).");
+            return (added, completed);
+        }
+
         private static ChecklistTemplateDto ToDto(ChecklistTemplates t, int dvCount) =>
             new(t.Id, t.Name, t.IsActive, t.Items.OrderBy(i => i.SortOrder).Select(i => i.Label).ToList(), dvCount);
 
