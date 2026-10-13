@@ -13,18 +13,13 @@ namespace MikroTek.Domain
         public string? JhsBankAccount { get; set; }
         public string? ShsBankAccount { get; set; }
         public string? ResponsibilityCenter { get; set; }
-        public string? FundCluster { get; set; }
-
-        /// <summary>School Head / Accountable Officer.</summary>
+        public string? FundCluster { get; set; }       
         public string? HeadName { get; set; }
-        public string? HeadPosition { get; set; }
-        /// <summary>Bookkeeper: "Checked by / Prepared by".</summary>
+        public string? HeadPosition { get; set; }    
         public string? BookkeeperName { get; set; }
-        public string? BookkeeperPosition { get; set; }
-        /// <summary>Validator: "Received by" on the Cash Disbursements Register.</summary>
+        public string? BookkeeperPosition { get; set; }      
         public string? ValidatorName { get; set; }
-        public string? ValidatorPosition { get; set; }
-        /// <summary>Division Cash Unit: "Verified by" on the School MOOE Slip.</summary>
+        public string? ValidatorPosition { get; set; }       
         public string? CashUnitName { get; set; }
         public string? CashUnitPosition { get; set; }
     }

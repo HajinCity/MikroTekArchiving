@@ -115,6 +115,10 @@
                 <a class="app-nav-link @A(Is("Vouchers", "Upload", "Review"))" asp-controller="Vouchers" asp-action="Upload" title="Upload Scanned DV"><i class="bi bi-cloud-arrow-up"></i><span>Upload Scanned DV</span>@if (alerts.Drafts > 0) { <span class="badge rounded-pill text-bg-warning" title="Scans uploaded but not yet encoded">@alerts.Drafts</span> }</a>
                 <a class="app-nav-link @A(Is("Vouchers", "Create"))" asp-controller="Vouchers" asp-action="Create" title="Manual Encode"><i class="bi bi-keyboard"></i><span>Manual Encode</span></a>
             }
+            @if (Can(Permissions.VouchersEncode) && Can(Permissions.CashAdvancesEncode))
+            {
+                <a class="app-nav-link @A(Is("Import"))" asp-controller="Import" asp-action="Index" title="Import MOOE Packet"><i class="bi bi-magic"></i><span>Import MOOE Packet</span></a>
+            }
 
             @if (Can(Permissions.ReportsView))
             {

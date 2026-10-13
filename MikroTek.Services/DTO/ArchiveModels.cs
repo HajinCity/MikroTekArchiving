@@ -36,8 +36,13 @@ namespace MikroTek.Services.DTO
         public string OrsBurs { get; init; } = "";
 
         public List<ExpenseLine> Lines { get; init; } = [];
+        public PayeeTaxType PayeeTaxType { get; init; }
+        public bool ManualTax { get; init; }
+        /// <summary>What the rates were applied to (0 on DVs saved before this was kept = the gross).</summary>
+        public decimal TaxBase { get; init; }
         public decimal Tax1 { get; init; }
         public decimal Tax3 { get; init; }
+        public decimal Tax5 { get; init; }
 
         public string Mode { get; init; } = "";
         public string CheckNo { get; init; } = "";
@@ -58,7 +63,10 @@ namespace MikroTek.Services.DTO
         public DateTime? UpdatedAt { get; init; }
 
         public decimal Gross => Lines.Sum(l => l.Amount);
-        public decimal Taxes => Tax1 + Tax3;
+        public decimal Taxes => Tax1 + Tax3 + Tax5;
+        public decimal TaxBaseOrGross => TaxBase > 0 ? TaxBase : Gross;
+        public bool IsVat => PayeeTaxType == PayeeTaxType.Vat;
+        public string PayeeTaxTypeText => PayeeTaxType == PayeeTaxType.Vat ? "VAT" : PayeeTaxType == PayeeTaxType.NonVat ? "Non-VAT" : "Exempt";
         public decimal Net => Gross - Taxes;
         public int DocsDone => Checklist.Count(c => c.Mark != "");
         public int DocsMissing => Checklist.Count(c => c.Mark == "");
@@ -193,8 +201,13 @@ namespace MikroTek.Services.DTO
         public string? ResponsibilityCenter { get; set; }
         public string? MfoPap { get; set; }
         public List<DvLineInput> Lines { get; set; } = [];
+        public PayeeTaxType PayeeTaxType { get; set; } = PayeeTaxType.NonVat;
+        /// <summary>false = Automatic: the server works the taxes out itself and ignores the typed amounts.</summary>
+        public bool ManualTax { get; set; }
+        public decimal? TaxBase { get; set; }
         public decimal? Tax1 { get; set; }
         public decimal? Tax3 { get; set; }
+        public decimal? Tax5 { get; set; }
         public string? Mode { get; set; }
         public string? CheckNo { get; set; }
         public DateTime? PaidDate { get; set; }

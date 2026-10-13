@@ -1,0 +1,356 @@
+﻿@model ImportReview
+@{
+    var d = Model.Draft;
+    var ca = d.CashAdvance;
+    ViewData["Title"] = "Check the Packet";
+    ViewData["Crumb"] = "Disbursements / Import MOOE Packet";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    string Money(decimal? amount) => amount is null ? "" : amount.Value.ToString("0.00", inv);
+    var existing = ca.ExistingId != 0;
+    var toCheck = d.Vouchers.Count(v => v.HasChecks);
+
+    // A field read unclearly is yellow, one whose figures disagree is red; the reason shows under it.
+    string Css(List<ImportFlag> flags, string field) =>
+        flags.FirstOrDefault(f => f.Field == field) is { } f ? (f.Level == "error" ? "is-invalid" : "ocr-field-missing") : "";
+    Microsoft.AspNetCore.Html.IHtmlContent Note(List<ImportFlag> flags, string field) =>
+        flags.FirstOrDefault(f => f.Field == field) is { } f
+            ? Html.Raw($"<div class=\"form-text {(f.Level == "error" ? "text-danger" : "text-warning-emphasis")}\"><i class=\"bi {(f.Level == "error" ? "bi-x-circle" : "bi-eye")} me-1\"></i>{Html.Encode(f.Message)}</div>")
+            : Html.Raw("");
+}
+<form asp-action="Save" method="post" id="importForm">
+<input type="hidden" name="Token" value="@d.Token" />
+<input type="hidden" name="CashAdvance.ExistingId" value="@ca.ExistingId" />
+<div class="row g-3">
+    <!-- LEFT: the packet, to compare with what was read -->
+    <div class="col-xl-5">
+        <div class="scan-side">
+            <div class="card scan-viewer">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <span>Packet</span>
+                    <span class="small text-body-secondary text-truncate">@d.FileName</span>
+                    <a class="btn btn-sm btn-light ms-auto text-nowrap" target="_blank" rel="noopener" href="@Url.Action("Packet", new { token = d.Token })"><i class="bi bi-box-arrow-up-right me-1"></i>New tab</a>
+                </div>
+                <div class="scan-stage scan-stage-doc">
+                    @if (d.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <iframe src="@Url.Action("Packet", new { token = d.Token })" title="The uploaded packet"></iframe>
+                    }
+                    else
+                    {
+                        <img src="@Url.Action("Packet", new { token = d.Token })" alt="The uploaded packet" />
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: what was read -->
+    <div class="col-xl-7">
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-octagon-fill"></i><div><b>Nothing was saved.</b> @Model.Error</div></div>
+        }
+
+        <div class="card mb-3">
+            <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-magic text-primary"></i>What was read
+                <span class="ms-auto small text-body-secondary">@d.PageCount page(s) · @d.Seconds.ToString("0.#", inv) s</span></div>
+            <div class="card-body small">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    @foreach (var p in d.PageKinds)
+                    {
+                        var parts = p.Split(' ', 2);
+                        <span class="badge text-bg-light border fw-normal">Page @parts[0]: @parts[1]</span>
+                    }
+                </div>
+                <div class="mb-2">
+                    <b>@d.Vouchers.Count DV(s)</b> found.
+                    @if (toCheck == 0) { <span class="text-success"><i class="bi bi-check2-circle"></i> Every figure agrees with the others.</span> }
+                    else { <span class="text-warning-emphasis"><i class="bi bi-eye"></i> @toCheck DV(s) have values to check (marked below).</span> }
+                </div>
+                @foreach (var n in d.Notes)
+                {
+                    var bad = n.Contains(" but ") || n.StartsWith("Recapitulation differences") || n.StartsWith("No ");
+                    <div class="@(bad ? "text-danger" : "text-body-secondary")"><i class="bi @(bad ? "bi-x-circle" : "bi-check2") me-1"></i>@n</div>
+                }
+                <div class="mt-2 fw-semibold" id="runningTotal"></div>
+            </div>
+        </div>
+
+        <!-- The cash advance -->
+        <div class="card mb-3">
+            <div class="card-header">Cash advance <span class="sub">— from the MOOE slip and the register</span></div>
+            <div class="card-body">
+                @if (existing)
+                {
+                    <div class="alert alert-info small mb-3"><i class="bi bi-info-circle me-1"></i>Payroll No. <b>@ca.PayrollNo</b> is already recorded. The DVs below will be added to that cash advance; its details are not changed.</div>
+                }
+                <fieldset @(existing ? "disabled" : "")>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label" for="caDept">Department</label>
+                        <select class="form-select" id="caDept" name="CashAdvance.Dept">
+                            <option value="JHS" selected="@(ca.Dept == Department.JHS)">JHS</option>
+                            <option value="SHS" selected="@(ca.Dept == Department.SHS)">SHS</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caFund">Fund</label>
+                        <select class="form-select" id="caFund" name="CashAdvance.Fund">
+                            <option value="AnnualBudget" selected="@(ca.Fund == FundType.AnnualBudget)">Annual Budget</option>
+                            <option value="SpecialFunds" selected="@(ca.Fund == FundType.SpecialFunds)">Special Funds</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caBatch">Batch No.</label>
+                        <input class="form-control @Css(ca.Flags, "BatchNo")" id="caBatch" name="CashAdvance.BatchNo" type="number" min="1" max="99" value="@ca.BatchNo" />
+                        @Note(ca.Flags, "BatchNo")
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="caCluster">Fund Cluster</label>
+                        <input class="form-control" id="caCluster" name="CashAdvance.FundCluster" value="@ca.FundCluster" maxlength="50" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caPayroll">Payroll No.</label>
+                        <input class="form-control mono @Css(ca.Flags, "PayrollNo")" id="caPayroll" name="CashAdvance.PayrollNo" value="@ca.PayrollNo" maxlength="50" />
+                        @Note(ca.Flags, "PayrollNo")
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caAda">ADA No.</label>
+                        <input class="form-control mono @Css(ca.Flags, "AdaNo")" id="caAda" name="CashAdvance.AdaNo" value="@ca.AdaNo" maxlength="50" />
+                        @Note(ca.Flags, "AdaNo")
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="caDate">Date</label>
+                        <input class="form-control @Css(ca.Flags, "Date")" id="caDate" name="CashAdvance.Date" type="date" value="@ca.Date?.ToString("yyyy-MM-dd")" />
+                        @Note(ca.Flags, "Date")
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="caAmount">Amount</label>
+                        <div class="input-group"><span class="input-group-text">₱</span><input class="form-control text-end money @Css(ca.Flags, "Amount")" id="caAmount" name="CashAdvance.Amount" inputmode="decimal" value="@Money(ca.Amount)" /></div>
+                        @Note(ca.Flags, "Amount")
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="caPeriod">Period Covered</label>
+                        <input class="form-control" id="caPeriod" name="CashAdvance.Period" value="@ca.Period" maxlength="100" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caOfficer">Accountable Officer</label>
+                        <input class="form-control" id="caOfficer" name="CashAdvance.Officer" value="@ca.Officer" maxlength="150" placeholder="Name" />
+                        <input class="form-control form-control-sm mt-1" name="CashAdvance.OfficerPosition" value="@ca.OfficerPosition" maxlength="150" placeholder="Position" aria-label="Accountable officer's position" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caVerified">Verified by (Cash Unit)</label>
+                        <input class="form-control" id="caVerified" name="CashAdvance.VerifiedBy" value="@ca.VerifiedBy" maxlength="150" placeholder="Name" />
+                        <input class="form-control form-control-sm mt-1" name="CashAdvance.VerifiedByPosition" value="@ca.VerifiedByPosition" maxlength="150" placeholder="Position" aria-label="Verifier's position" />
+                    </div>
+                </div>
+                </fieldset>
+            </div>
+        </div>
+
+        <!-- The DVs -->
+        @for (var i = 0; i < d.Vouchers.Count; i++)
+        {
+            var v = d.Vouchers[i];
+            var p = $"Vouchers[{i}]";
+            var codes = Model.Accounts.Select(a => a.Code).ToHashSet();
+            <div class="card mb-3 dv-card @(v.Include ? "" : "opacity-75")" data-index="@i">
+                <input type="hidden" name="@(p).Payment" value="@Money(v.Payment)" class="dv-payment" />
+                <input type="hidden" name="@(p).Balance" value="@Money(v.Balance)" />
+                <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input dv-include" type="checkbox" id="inc@(i)" name="@(p).Include" value="true" checked="@v.Include" />
+                        <input type="hidden" name="@(p).Include" value="false" />
+                        <label class="form-check-label fw-semibold" for="inc@(i)">@(v.DvNo ?? $"DV {i + 1}")</label>
+                    </div>
+                    <span class="small text-body-secondary text-truncate" style="max-width:40ch">@v.Payee</span>
+                    <span class="ms-auto dv-status"></span>
+                </div>
+                <div class="card-body">
+                    @if (v.Flags.Count > 0)
+                    {
+                        <div class="alert @(v.HasErrors ? "alert-danger" : "alert-warning") small py-2 mb-3">
+                            @foreach (var f in v.Flags)
+                            {
+                                <div><i class="bi @(f.Level == "error" ? "bi-x-circle" : "bi-eye") me-1"></i>@f.Message</div>
+                            }
+                        </div>
+                    }
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="dvNo@(i)">DV No.</label>
+                            <input class="form-control form-control-sm mono @Css(v.Flags, "DvNo")" id="dvNo@(i)" name="@(p).DvNo" value="@v.DvNo" maxlength="30" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="chk@(i)">Check No.</label>
+                            <input class="form-control form-control-sm mono" id="chk@(i)" name="@(p).CheckNo" value="@v.CheckNo" maxlength="30" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="date@(i)">Date</label>
+                            <input class="form-control form-control-sm @Css(v.Flags, "Date")" id="date@(i)" name="@(p).Date" type="date" value="@v.Date?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1" for="payee@(i)">Payee</label>
+                            <input class="form-control form-control-sm @Css(v.Flags, "Payee")" id="payee@(i)" name="@(p).Payee" value="@v.Payee" maxlength="200" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1" for="tin@(i)">TIN</label>
+                            <input class="form-control form-control-sm mono" id="tin@(i)" name="@(p).Tin" value="@v.Tin" maxlength="30" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1" for="tax@(i)">Payee tax type</label>
+                            <select class="form-select form-select-sm dv-taxtype" id="tax@(i)" name="@(p).PayeeTaxType">
+                                <option value="NonVat" selected="@(v.PayeeTaxType == PayeeTaxType.NonVat)">Non-VAT</option>
+                                <option value="Vat" selected="@(v.PayeeTaxType == PayeeTaxType.Vat)">VAT</option>
+                                <option value="Exempt" selected="@(v.PayeeTaxType == PayeeTaxType.Exempt)">Exempt</option>
+                            </select>
+                        </div>
+                        <input type="hidden" name="@(p).Address" value="@v.Address" />
+                    </div>
+
+                    <table class="table table-sm align-middle mt-3 mb-1 dv-lines">
+                        <thead><tr><th>UACS account (debit)</th><th class="text-end" style="width:9.5rem">Amount</th><th style="width:2.5rem"></th></tr></thead>
+                        <tbody>
+                            @for (var j = 0; j < v.Lines.Count; j++)
+                            {
+                                var l = v.Lines[j];
+                                <tr>
+                                    <td>
+                                        <select class="form-select form-select-sm @(l.Flag is null ? "" : "ocr-field-missing")" name="@(p).Lines[@j].Code" aria-label="UACS account" title="@l.Flag">
+                                            <option value="">— select account —</option>
+                                            @if (l.Code is not null && !codes.Contains(l.Code))
+                                            {
+                                                <option value="@l.Code" selected>@l.Code · @l.Title (not in UACS Accounts)</option>
+                                            }
+                                            @foreach (var a in Model.Accounts) { <option value="@a.Code" selected="@(a.Code == l.Code)">@a.Code · @a.Title</option> }
+                                        </select>
+                                    </td>
+                                    <td><input class="form-control form-control-sm text-end money line-amt @(l.Amount is null || (l.Flag?.Contains("amount") ?? false) ? "ocr-field-missing" : "")" name="@(p).Lines[@j].Amount" inputmode="decimal" value="@Money(l.Amount)" placeholder="0.00" aria-label="Amount" /></td>
+                                    <td><button type="button" class="btn btn-sm btn-light remove-line" title="Remove line"><i class="bi bi-trash"></i></button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-sm btn-outline-primary add-line"><i class="bi bi-plus-lg"></i> Add account line</button>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-1">Tax base</label>
+                            <input class="form-control form-control-sm text-end money dv-base" name="@(p).TaxBase" inputmode="decimal" value="@Money(v.TaxBase)" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-1">Due to BIR 1%</label>
+                            <input class="form-control form-control-sm text-end money dv-tax @Css(v.Flags, "Tax1")" name="@(p).Tax1" inputmode="decimal" value="@Money(v.Tax1)" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-1">Due to BIR 3%</label>
+                            <input class="form-control form-control-sm text-end money dv-tax @Css(v.Flags, "Tax3")" name="@(p).Tax3" inputmode="decimal" value="@Money(v.Tax3)" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-1">Due to BIR 5%</label>
+                            <input class="form-control form-control-sm text-end money dv-tax @Css(v.Flags, "Tax5")" name="@(p).Tax5" inputmode="decimal" value="@Money(v.Tax5)" />
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 small mt-3 pt-2 border-top">
+                        <span>Gross <b class="dv-gross"></b></span>
+                        <span>Taxes <b class="dv-taxes"></b></span>
+                        <span>Net <b class="dv-net"></b></span>
+                        <span class="ms-auto dv-check"></span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="card shadow-sm" style="position:sticky;bottom:.75rem;z-index:5">
+            <div class="card-body d-flex flex-wrap align-items-center gap-2">
+                <div class="small text-body-secondary me-auto">The taxes are saved as shown (Manual), the way they were withheld on the register. Each DV can still be edited later.</div>
+                <button type="submit" form="discardForm" class="btn btn-light" data-ui-confirm="Discard this packet? Nothing will be saved."><i class="bi bi-x-lg me-1"></i>Discard</button>
+                <button class="btn btn-primary" id="saveBtn"><i class="bi bi-save me-1"></i><span id="saveText">Save</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+</form>
+<form asp-action="Discard" method="post" id="discardForm"><input type="hidden" name="token" value="@d.Token" /></form>
+
+<template id="lineTpl">
+    <tr>
+        <td><select class="form-select form-select-sm" name="Lines[__j__].Code" aria-label="UACS account"><option value="">— select account —</option>
+            @foreach (var a in Model.Accounts) { <option value="@a.Code">@a.Code · @a.Title</option> }</select></td>
+        <td><input class="form-control form-control-sm text-end money line-amt" name="Lines[__j__].Amount" inputmode="decimal" placeholder="0.00" aria-label="Amount" /></td>
+        <td><button type="button" class="btn btn-sm btn-light remove-line" title="Remove line"><i class="bi bi-trash"></i></button></td>
+    </tr>
+</template>
+
+@section Scripts {
+<script>
+(function () {
+    const peso = n => (Math.abs(n) < 0.005 ? 0 : n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = el => { const v = parseFloat(String(el?.value ?? "").replace(/[,₱\s]/g, "")); return isNaN(v) ? 0 : v; };
+    const cards = [...document.querySelectorAll(".dv-card")];
+    const caAmount = document.getElementById("caAmount");
+    const existing = @(existing ? "true" : "false");
+
+    function reindex(card) {
+        const i = card.dataset.index;
+        card.querySelectorAll(".dv-lines tbody tr").forEach((tr, j) =>
+            tr.querySelectorAll("[name]").forEach(el => el.name = `Vouchers[${i}].Lines[${j}].` + el.name.split(".").pop()));
+    }
+
+    function check(card) {
+        const gross = [...card.querySelectorAll(".line-amt")].reduce((s, el) => s + num(el), 0);
+        const taxes = [...card.querySelectorAll(".dv-tax")].reduce((s, el) => s + num(el), 0);
+        const net = Math.round((gross - taxes) * 100) / 100;
+        const payment = num(card.querySelector(".dv-payment"));
+        const hasPayment = card.querySelector(".dv-payment").value !== "";
+        card.querySelector(".dv-gross").textContent = peso(gross);
+        // Non-VAT and exempt: the rates apply to the gross itself.
+        if (card.querySelector(".dv-taxtype").value !== "Vat") card.querySelector(".dv-base").value = gross.toFixed(2);
+        card.querySelector(".dv-taxes").textContent = peso(taxes);
+        card.querySelector(".dv-net").textContent = peso(net);
+        const ok = hasPayment && Math.abs(net - payment) < 0.05;
+        card.querySelector(".dv-check").innerHTML = !hasPayment ? '<span class="text-body-secondary">No payment read from the register</span>'
+            : ok ? `<span class="text-success"><i class="bi bi-check2-circle"></i> Matches the register payment ${peso(payment)}</span>`
+                 : `<span class="text-danger"><i class="bi bi-x-circle"></i> Register payment is ${peso(payment)} (difference ${peso(net - payment)})</span>`;
+        const included = card.querySelector(".dv-include").checked;
+        card.classList.toggle("opacity-75", !included);
+        card.querySelector(".dv-status").innerHTML = !included ? '<span class="badge-status text-bg-light">Left out</span>'
+            : ok ? '<span class="badge-status st-complete">Agrees</span>' : '<span class="badge-status st-incomplete">Check</span>';
+        return included ? net : 0;
+    }
+
+    function update() {
+        const nets = cards.map(check);
+        const total = nets.reduce((s, n) => s + n, 0);
+        const count = cards.filter(c => c.querySelector(".dv-include").checked).length;
+        const amount = num(caAmount);
+        document.getElementById("runningTotal").textContent =
+            `Ticked DVs: ${count} · payments ${peso(total)}` + (amount ? ` · cash advance ${peso(amount)} · balance ${peso(amount - total)}` : "");
+        document.getElementById("saveText").textContent = existing ? `Add ${count} DV(s) to the cash advance` : `Save cash advance and ${count} DV(s)`;
+    }
+
+    cards.forEach(card => {
+        card.addEventListener("input", update);
+        card.addEventListener("change", update);
+        card.querySelector(".add-line").addEventListener("click", () => {
+            const html = document.getElementById("lineTpl").innerHTML;
+            card.querySelector(".dv-lines tbody").insertAdjacentHTML("beforeend", html);
+            reindex(card); update();
+        });
+        card.addEventListener("click", e => {
+            const btn = e.target.closest(".remove-line"); if (!btn) return;
+            btn.closest("tr").remove(); reindex(card); update();
+        });
+    });
+    caAmount?.addEventListener("input", update);
+
+    // Amounts go to the server as plain numbers (no thousands commas).
+    document.getElementById("importForm").addEventListener("submit", () => {
+        document.querySelectorAll("#importForm .money").forEach(el => el.value = el.value.replace(/[,₱\s]/g, ""));
+        const btn = document.getElementById("saveBtn");
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+    });
+    update();
+})();
+</script>
+}

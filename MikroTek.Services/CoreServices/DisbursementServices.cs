@@ -77,9 +77,20 @@ namespace MikroTek.Services.CoreServices
             }
 
             var gross = lines.Sum(l => l.Amount);
-            decimal tax1 = r.Tax1 ?? 0, tax3 = r.Tax3 ?? 0;
-            if (tax1 < 0 || tax3 < 0) return ServiceResult.Fail("Withholding tax cannot be negative.");
-            if (tax1 + tax3 > gross) return ServiceResult.Fail("The withholding tax is more than the gross amount.");
+            if (!Enum.IsDefined(r.PayeeTaxType))
+                return ServiceResult.Fail("Please choose the payee's tax type (Non-VAT, VAT or Exempt).");
+
+            // Automatic: worked out here from the payee's tax type, whatever the browser sent.
+            // Manual: the amounts typed by the bookkeeper, checked only for sense.
+            var taxes = r.ManualTax
+                ? new TaxBreakdown(r.TaxBase ?? gross, r.Tax1 ?? 0, r.Tax3 ?? 0, r.Tax5 ?? 0)
+                : TaxRules.Compute(gross, r.PayeeTaxType);
+            if (taxes.Tax1 < 0 || taxes.Tax3 < 0 || taxes.Tax5 < 0 || taxes.TaxBase < 0)
+                return ServiceResult.Fail("Withholding tax cannot be negative.");
+            if (taxes.TaxBase > gross)
+                return ServiceResult.Fail("The tax base cannot be more than the gross amount.");
+            if (taxes.Total > gross)
+                return ServiceResult.Fail("The withholding tax is more than the gross amount.");
 
             // ---- transaction type (checklist template)
             ChecklistTemplates? template = null;
@@ -126,8 +137,12 @@ namespace MikroTek.Services.CoreServices
             dv.ResponsibilityCenter = Cut(r.ResponsibilityCenter, 50);
             dv.MfoPap = Cut(r.MfoPap, 50);
             dv.OrsBurs = Cut(r.OrsBurs, 50);
-            dv.Tax1 = tax1;
-            dv.Tax3 = tax3;
+            dv.PayeeTaxType = r.PayeeTaxType;
+            dv.ManualTax = r.ManualTax;
+            dv.TaxBase = TaxRules.Round(taxes.TaxBase);
+            dv.Tax1 = TaxRules.Round(taxes.Tax1);
+            dv.Tax3 = TaxRules.Round(taxes.Tax3);
+            dv.Tax5 = TaxRules.Round(taxes.Tax5);
             dv.Mode = Cut(r.Mode, 30);
             dv.CheckNo = Cut(r.CheckNo, 30);
             dv.PaidDate = r.PaidDate?.Date;
@@ -141,7 +156,7 @@ namespace MikroTek.Services.CoreServices
 
             // A payee typed for the first time is added to Setup → Payees, so next time it can be picked.
             if (!await _payees.NameExistsAsync(payee))
-                _payees.Add(new Payees { Name = payee, Tin = dv.Tin, Address = dv.Address });
+                _payees.Add(new Payees { Name = payee, Tin = dv.Tin, Address = dv.Address, TaxType = r.PayeeTaxType });
 
             await _vouchers.SaveChangesAsync();
             _logger.WriteLog(Level.Info, LogType.Activity, $"User {byUserId} saved DV {dvNo} ({payee}, gross {gross:N2}).");

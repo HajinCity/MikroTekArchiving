@@ -34,9 +34,19 @@ namespace MikroTek.Domain
         public string? MfoPap { get; set; }
         public string? OrsBurs { get; set; }
 
-        /// <summary>Withholding tax 1% and 3% (amounts, not rates).</summary>
+        /// <summary>Non-VAT, VAT or Exempt at the time of encoding (decides the Alphalist columns).</summary>
+        public PayeeTaxType PayeeTaxType { get; set; } = PayeeTaxType.NonVat;
+
+        /// <summary>false = the taxes were computed by the system from the payee's tax type; true = typed by hand.</summary>
+        public bool ManualTax { get; set; }
+
+        /// <summary>The amount the rates are applied to (gross for Non-VAT, gross ÷ 1.12 for VAT).</summary>
+        public decimal TaxBase { get; set; }
+
+        /// <summary>Withholding tax 1%, 3% and 5% (amounts, not rates). All are credited to Due to BIR.</summary>
         public decimal Tax1 { get; set; }
         public decimal Tax3 { get; set; }
+        public decimal Tax5 { get; set; }
 
         public string? Mode { get; set; }
         public string? CheckNo { get; set; }

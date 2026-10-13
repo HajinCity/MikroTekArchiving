@@ -10,7 +10,7 @@ namespace MikroTek.Archiving.Areas.Portal.Controllers;
 
 [Permission(Permissions.VouchersView)]
 public class VouchersController(IDisbursements vouchers, ICashAdvances advances, IChecklistTemplates templates,
-    IUacsAccounts accounts, IPayees payees, ISchoolProfile school, IArchiveFiles files) : PortalControllerBase
+    IUacsAccounts accounts, IPayees payees, ISchoolProfile school, IArchiveFiles files, IDvScan scans) : PortalControllerBase
 {
     public async Task<IActionResult> Index(string? q, string? dept, string? status, long? ca, DateTime? from)
     {
@@ -52,11 +52,22 @@ public class VouchersController(IDisbursements vouchers, ICashAdvances advances,
         return View(dv);
     }
 
+    /// <summary>
+    /// Reads the DV's attached scans and returns what to put in the form (the page fills the fields itself,
+    /// so nothing is saved until the bookkeeper presses Save).
+    /// </summary>
+    [HttpPost, ValidateAntiForgeryToken, Permission(Permissions.VouchersEncode)]
+    public async Task<IActionResult> ReadScan(long id, bool again = false)
+    {
+        if (await vouchers.GetAsync(id) is null) return NotFound();
+        return Json(await scans.ReadAsync(id, again, User.UserId()));
+    }
+
     // ── Scan-first flow ───────────────────────────────────────────────
     // 1. Upload the scanned packet → a draft DV is created with the file attached.
-    // 2. The encoding form opens with the scan beside it; the bookkeeper types what is on the paper.
+    // 2. The encoding form opens with the scan beside it and fills itself from the scan (ReadScan); the bookkeeper
+    //    checks the values against the paper and types what could not be read.
     // 3. Saving turns the draft into an archived DV.
-    // (Reading the text from the scan automatically comes later.)
 
     [HttpGet, Permission(Permissions.VouchersEncode)]
     public async Task<IActionResult> Upload(long? ca) => View(await UploadPageAsync(ca));
@@ -87,7 +98,7 @@ public class VouchersController(IDisbursements vouchers, ICashAdvances advances,
             return RedirectToAction(nameof(Upload), new { ca = cashAdvanceId });
         }
         if (problems.Count > 0) ToastError(string.Join(" ", problems));
-        Toast("Scan uploaded. Type the details from the scan, then save to archive it.");
+        Toast("Scan uploaded.");
         return RedirectToAction(nameof(Edit), new { id = draft.Id });
     }
 
@@ -120,7 +131,9 @@ public class VouchersController(IDisbursements vouchers, ICashAdvances advances,
             FundCluster = dv.FundCluster, Payee = dv.Payee, Tin = dv.Tin, OrsBurs = dv.OrsBurs, Address = dv.Address,
             Particulars = dv.Particulars, ResponsibilityCenter = dv.ResponsibilityCenter, MfoPap = dv.MfoPap,
             Lines = dv.Lines.Select(l => new DvLineInput { Code = l.Code, Amount = l.Amount }).ToList(),
-            Tax1 = dv.Tax1 == 0 ? null : dv.Tax1, Tax3 = dv.Tax3 == 0 ? null : dv.Tax3,
+            // DVs encoded before automatic tax existed (no tax base kept) open in Manual, so their amounts stay as typed.
+            PayeeTaxType = dv.PayeeTaxType, ManualTax = dv.ManualTax || (dv.TaxBase == 0 && dv.Taxes > 0), TaxBase = dv.TaxBaseOrGross,
+            Tax1 = dv.Tax1, Tax3 = dv.Tax3, Tax5 = dv.Tax5,
             Mode = dv.Mode, CheckNo = dv.CheckNo, PaidDate = dv.PaidDate, Bank = dv.Bank, ReceivedBy = dv.ReceivedBy,
             OrNo = dv.OrNo, JevNo = dv.JevNo, ChecklistRemarks = dv.ChecklistRemarks,
             Check = dv.Checklist.Select(c => new ChecklistInput { Label = c.Label, Mark = c.Mark, Date = c.Date }).ToList()
@@ -195,6 +208,7 @@ public class VouchersController(IDisbursements vouchers, ICashAdvances advances,
             Payees = (await payees.GetAllAsync()).Where(p => p.IsActive).ToList(),
             NextNumbers = await vouchers.GetNextDvNumbersAsync(),
             School = await school.GetAsync(),
+            BirAccountTitle = allAccounts.FirstOrDefault(a => a.Code == TaxRules.DueToBirCode)?.Title ?? TaxRules.DueToBirTitle,
             Scans = existing is null ? [] : await files.GetForOwnerAsync(FileOwner.Voucher, existing.Id)
         };
     }

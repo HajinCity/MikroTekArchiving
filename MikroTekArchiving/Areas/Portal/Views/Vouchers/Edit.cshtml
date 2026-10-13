@@ -28,13 +28,29 @@
     </div></div>
     return;
 }
-@if (Model.IsDraft)
+@if (hasScan)
 {
-    <div class="alert alert-light border d-flex flex-wrap align-items-center gap-3">
-        <i class="bi bi-cloud-check fs-4 text-primary"></i>
-        <div class="flex-fill">
-            <b>The scan is uploaded.</b> Type the details from it below, then press <b>Save to archive</b>.
-            <div class="small text-body-secondary">Until then this is a draft: it is not counted in any total or report.</div>
+    <!-- Reading the attached scan: fills the form, marks what to check. Drafts are read as soon as the page opens. -->
+    <div class="alert alert-light border mb-3" id="scanRead" data-url="@Url.Action("ReadScan", new { id = v.Id })" data-auto="@(Model.IsDraft ? "true" : "false")">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <i class="bi bi-magic fs-4 text-primary" id="scanReadIcon"></i>
+            <div class="flex-fill" id="scanReadText">
+                @if (Model.IsDraft)
+                {
+                    <b>The scan is uploaded.</b> <span>Its details are filled in below; check them against the scan, then press <b>Save to archive</b>.</span>
+                    <div class="small text-body-secondary">Until then this is a draft: it is not counted in any total or report.</div>
+                }
+                else
+                {
+                    <span>Empty fields can be filled in from the attached scan.</span>
+                }
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="scanReadBtn"><i class="bi bi-magic me-1"></i>@(Model.IsDraft ? "Read again" : "Read the scan")</button>
+        </div>
+        <ul class="small mb-0 mt-2 d-none" id="scanNotes"></ul>
+        <div class="small text-body-secondary mt-2 d-none" id="scanLegend">
+            <span class="ocr-tag ocr-read">read</span> filled from the scan ·
+            <span class="ocr-tag ocr-miss">check</span> unclear on the scan, compare with the paper
         </div>
     </div>
 }
@@ -129,7 +145,7 @@
                             <label class="form-label" for="payee">Payee name</label>
                             <input class="form-control" name="Payee" list="payeeList" id="payee" value="@v.Payee" maxlength="200" autocomplete="off" placeholder="Start typing — pick an existing payee or type a new one" required />
                             <datalist id="payeeList">
-                                @foreach (var p in Model.Payees) { <option value="@p.Name" data-tin="@p.Tin" data-address="@p.Address"></option> }
+                                @foreach (var p in Model.Payees) { <option value="@p.Name" data-tin="@p.Tin" data-address="@p.Address" data-tax="@p.TaxType"></option> }
                             </datalist>
                             <div class="form-text">A new name is added to Setup → Payees when you save.</div>
                         </div>
@@ -141,9 +157,17 @@
                             <label class="form-label" for="orsBurs">ORS/BURS No.</label>
                             <input class="form-control" name="OrsBurs" id="orsBurs" value="@v.OrsBurs" maxlength="50" />
                         </div>
-                        <div class="col-12">
+                        <div class="col-md-8">
                             <label class="form-label" for="address">Address</label>
                             <input class="form-control" name="Address" id="address" value="@v.Address" maxlength="250" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="payeeTax">Tax type</label>
+                            <select class="form-select" name="PayeeTaxType" id="payeeTax">
+                                <option value="NonVat" selected="@(v.PayeeTaxType == PayeeTaxType.NonVat)">Non-VAT</option>
+                                <option value="Vat" selected="@(v.PayeeTaxType == PayeeTaxType.Vat)">VAT registered</option>
+                                <option value="Exempt" selected="@(v.PayeeTaxType == PayeeTaxType.Exempt)">Exempt (no withholding)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -190,17 +214,36 @@
                             </table>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="addLine"><i class="bi bi-plus-lg"></i> Add account line</button>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-12">
+                            <div class="bir-head">
+                                <div>
+                                    <div class="fw-semibold">UACS BIR Contra Assets</div>
+                                    <div class="small text-body-secondary">Withheld taxes are credited to <span class="mono">@TaxRules.DueToBirCode</span> · @Model.BirAccountTitle</div>
+                                </div>
+                                <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="How the tax is computed">
+                                    <input type="radio" class="btn-check" name="ManualTax" value="false" id="taxAuto" checked="@(!v.ManualTax)" />
+                                    <label class="btn btn-outline-primary" for="taxAuto"><i class="bi bi-calculator me-1"></i>Automatic</label>
+                                    <input type="radio" class="btn-check" name="ManualTax" value="true" id="taxManual" checked="@v.ManualTax" />
+                                    <label class="btn btn-outline-primary" for="taxManual"><i class="bi bi-pencil me-1"></i>Manual</label>
+                                </div>
+                            </div>
+                            <div class="small text-body-secondary mt-1" id="taxRule"></div>
+                        </div>
+                        <div class="col-6 col-md-3">
                             <label class="form-label" for="taxBase">Tax base</label>
-                            <input class="form-control text-end" id="taxBase" readonly />
+                            <input class="form-control text-end tax-field" name="TaxBase" id="taxBase" inputmode="decimal" value="@Money(v.TaxBase)" placeholder="0.00" />
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="tax1">Withholding 1% <button type="button" class="btn btn-link btn-sm p-0 ms-1 calc" data-rate="0.01" data-target="tax1">compute</button></label>
-                            <input class="form-control text-end tax" name="Tax1" id="tax1" inputmode="decimal" value="@Money(v.Tax1)" placeholder="0.00" />
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="tax1">Withholding 1%</label>
+                            <input class="form-control text-end tax tax-field" name="Tax1" id="tax1" inputmode="decimal" value="@Money(v.Tax1)" placeholder="0.00" />
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="tax3">Withholding 3% <button type="button" class="btn btn-link btn-sm p-0 ms-1 calc" data-rate="0.03" data-target="tax3">compute</button></label>
-                            <input class="form-control text-end tax" name="Tax3" id="tax3" inputmode="decimal" value="@Money(v.Tax3)" placeholder="0.00" />
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="tax3">Withholding 3%</label>
+                            <input class="form-control text-end tax tax-field" name="Tax3" id="tax3" inputmode="decimal" value="@Money(v.Tax3)" placeholder="0.00" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="tax5">Withholding 5%</label>
+                            <input class="form-control text-end tax tax-field" name="Tax5" id="tax5" inputmode="decimal" value="@Money(v.Tax5)" placeholder="0.00" />
                         </div>
                     </div>
                 </div>
@@ -362,12 +405,38 @@
         return out + " Pesos" + (cents ? ` & ${String(cents).padStart(2, "0")}/100` : "") + " Only";
     }
 
+    // ---- Withholding tax. Automatic follows the payee's tax type (the server applies the same rule when saving):
+    //   Non-VAT: 1% + 3% of the gross · VAT: base = gross ÷ 1.12, then 1% + 5% of the base · Exempt: none.
+    const cents = n => Math.round(n * 100);                 // work in centavos so .5 rounds up like on paper
+    const pct = (baseCents, rate) => Math.round(baseCents * rate) / 100;
+    const isManual = () => $("taxManual").checked;
+    function computeTaxes(gross) {
+        const g = cents(gross), type = $("payeeTax").value;
+        if (type === "Vat") { const b = Math.round(g / 1.12); return { base: b / 100, t1: pct(b, 0.01), t3: 0, t5: pct(b, 0.05) }; }
+        if (type === "Exempt") return { base: g / 100, t1: 0, t3: 0, t5: 0 };
+        return { base: g / 100, t1: pct(g, 0.01), t3: pct(g, 0.03), t5: 0 };
+    }
+    const rules = {
+        NonVat: "Non-VAT payee: 1% and 3% of the gross amount.",
+        Vat: "VAT-registered payee: tax base = gross ÷ 1.12, then 1% and 5% of the tax base.",
+        Exempt: "Exempt payee: no tax withheld."
+    };
+    function applyTaxMode() {
+        const manual = isManual();
+        document.querySelectorAll(".tax-field").forEach(el => { el.readOnly = !manual; el.classList.toggle("bg-body-tertiary", !manual); });
+        $("taxRule").textContent = manual ? "Manual: type the amounts as written on the DV." : "Automatic — " + rules[$("payeeTax").value];
+        update();
+    }
+
     function update() {
         const gross = [...document.querySelectorAll(".line-amt")].reduce((s, el) => s + num(el), 0);
-        const tax = num($("tax1")) + num($("tax3"));
+        if (!isManual()) {
+            const t = computeTaxes(gross);
+            $("taxBase").value = t.base.toFixed(2); $("tax1").value = t.t1.toFixed(2); $("tax3").value = t.t3.toFixed(2); $("tax5").value = t.t5.toFixed(2);
+        }
+        const tax = num($("tax1")) + num($("tax3")) + num($("tax5"));
         const net = gross - tax;
         const bal = parseFloat($("caSelect").selectedOptions[0].dataset.balance) || 0;
-        $("taxBase").value = gross.toFixed(2);
         $("sGross").textContent = peso(gross);
         $("sTax").textContent = tax ? "(" + peso(tax) + ")" : "-";
         $("sNet").textContent = peso(net);
@@ -407,10 +476,9 @@
     document.addEventListener("click", e => {
         const btn = e.target.closest(".remove-line");
         if (btn && document.querySelectorAll("#linesTable tbody tr").length > 1) { btn.closest("tr").remove(); reindex(); update(); }
-        const calc = e.target.closest(".calc");
-        if (calc) { $(calc.dataset.target).value = (num($("taxBase")) * parseFloat(calc.dataset.rate)).toFixed(2); update(); }
     });
     document.addEventListener("input", e => { if (e.target.matches(".line-amt, .tax")) update(); });
+    ["taxAuto", "taxManual", "payeeTax"].forEach(id => $(id).addEventListener("change", applyTaxMode));
     document.addEventListener("change", e => { if (e.target.matches("#checklist input")) update(); });
     $("caSelect").addEventListener("change", followCashAdvance);
     $("typeSelect").addEventListener("change", renderChecklist);
@@ -418,7 +486,7 @@
     // Pick a known payee -> fill TIN and address.
     $("payee").addEventListener("change", () => {
         const opt = [...$("payeeList").options].find(o => o.value === $("payee").value);
-        if (opt) { $("tin").value = opt.dataset.tin; $("address").value = opt.dataset.address; }
+        if (opt) { $("tin").value = opt.dataset.tin; $("address").value = opt.dataset.address; $("payeeTax").value = opt.dataset.tax || "NonVat"; applyTaxMode(); }
     });
 
     $("dvForm").addEventListener("submit", () => {
@@ -443,5 +511,118 @@
 
     renderChecklist();
     followCashAdvance();
+    applyTaxMode();
+
+    // ---- Fill the form from the attached scan (read on the server, offline).
+    // A draft: fields still as they were when the page opened are replaced. A saved DV: only empty fields are filled.
+    (function () {
+        const box = $("scanRead"); if (!box) return;
+        const isDraft = box.dataset.auto === "true";
+        const initial = new Map([...document.querySelectorAll("#dvForm [id]")].filter(el => "value" in el).map(el => [el.id, el.value]));
+        const token = document.querySelector("#dvForm input[name=__RequestVerificationToken]")?.value ?? "";
+        const btn = $("scanReadBtn"), text = $("scanReadText"), notes = $("scanNotes");
+        // What the last reading put in (so reading again may replace it), and whether the lines were edited since.
+        const fromScan = new Map();
+        let linesFromScan = false, linesEdited = false;
+        $("linesTable").addEventListener("input", () => linesEdited = true);
+        $("linesTable").addEventListener("change", () => linesEdited = true);
+
+        function mark(el, unsure, why) {
+            el.classList.remove("ocr-field-read", "ocr-field-missing");
+            el.classList.add(unsure ? "ocr-field-missing" : "ocr-field-read");
+            el.title = why || (unsure ? "Unclear on the scan: compare with the paper" : "Read from the scan");
+            el.addEventListener("input", () => el.classList.remove("ocr-field-read", "ocr-field-missing"), { once: true });
+        }
+        function fill(id, value, unsure) {
+            const el = $(id); if (!el || value == null || value === "") return false;
+            const untouched = el.value === "" || el.value === fromScan.get(id) || (isDraft && el.value === initial.get(id));
+            if (!untouched) return false;
+            if (el.tagName === "SELECT" && ![...el.options].some(o => o.value === value)) return false;
+            el.value = value;
+            fromScan.set(id, value);
+            mark(el, unsure);
+            return true;
+        }
+        function linesAreEmpty() {
+            return [...document.querySelectorAll("#linesTable tbody tr")].every(tr =>
+                !tr.querySelector("select").value && !tr.querySelector(".line-amt").value);
+        }
+        function fillLines(lines) {
+            const body = $("linesTable").tBodies[0];
+            body.replaceChildren();
+            lines.forEach((l, i) => {
+                body.insertAdjacentHTML("beforeend", $("lineTpl").innerHTML.replaceAll("__i__", i));
+                const tr = body.rows[i], sel = tr.querySelector("select"), amt = tr.querySelector(".line-amt");
+                if (l.code && ![...sel.options].some(o => o.value === l.code)) {
+                    sel.add(new Option(`${l.code} · ${l.title || ""} (not in UACS Accounts)`, l.code));
+                }
+                sel.value = l.code || "";
+                amt.value = l.amount != null ? Number(l.amount).toFixed(2) : "";
+                mark(sel, !!l.flag || !l.code, l.flag);
+                mark(amt, l.amount == null || !!l.flag, l.flag);
+            });
+            if (lines.length === 0) body.insertAdjacentHTML("beforeend", $("lineTpl").innerHTML.replaceAll("__i__", 0));
+        }
+
+        async function read(again) {
+            btn.disabled = true;
+            const before = text.innerHTML;
+            text.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span><b>Reading the scan…</b> <span class="text-body-secondary">about 10–20 seconds</span>';
+            notes.classList.add("d-none");
+            let r;
+            try {
+                const res = await fetch(box.dataset.url, { method: "POST", body: new URLSearchParams({ __RequestVerificationToken: token, again: again ? "true" : "false" }) });
+                if (!res.ok) throw new Error(res.status);
+                r = await res.json();
+            } catch {
+                text.innerHTML = before;
+                notes.innerHTML = "<li>The scan could not be read just now. Type the details from the scan, or press the button to try again.</li>";
+                notes.classList.remove("d-none");
+                btn.disabled = false;
+                return;
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Read again';
+            if (!r.found) {
+                text.innerHTML = `<b>Nothing was filled in.</b> ${esc(r.message || "")}`;
+                return;
+            }
+
+            const unsure = new Set(r.unsure || []);
+            let filled = 0;
+            const f = r.fields || {};
+            // The type first: choosing it loads its checklist.
+            if (fill("typeSelect", f.typeSelect, false)) { filled++; renderChecklist(); }
+            for (const id of ["dvNo", "dvDate", "fundCluster", "payee", "tin", "orsBurs", "address", "particulars", "rc", "mfo",
+                              "mode", "checkNo", "paidDate", "bank", "receivedBy", "jevNo"]) {
+                if (fill(id, f[id], unsure.has(id))) filled++;
+            }
+            if ((r.lines || []).length > 0 && (linesAreEmpty() || (linesFromScan && !linesEdited))) {
+                fillLines(r.lines);
+                linesFromScan = true; linesEdited = false;
+                filled += r.lines.length;
+                if (fill("payeeTax", f.payeeTax, false)) filled++;
+                (r.manualTax ? $("taxManual") : $("taxAuto")).checked = true;
+                applyTaxMode();
+                if (r.manualTax) {
+                    [["taxBase", r.taxBase], ["tax1", r.tax1], ["tax3", r.tax3], ["tax5", r.tax5]].forEach(([id, v]) => {
+                        $(id).value = v != null ? Number(v).toFixed(2) : "";
+                        mark($(id), unsure.has(id));
+                    });
+                } else ["tax1", "tax3", "tax5"].forEach(id => mark($(id), unsure.has(id)));
+            }
+            update();
+
+            const toCheck = document.querySelectorAll("#dvForm .ocr-field-missing").length;
+            text.innerHTML = `<b>${filled} field(s) filled from the scan</b> (page ${r.dvPage} of ${r.pageCount}).`
+                + (toCheck ? ` <span class="text-warning-emphasis">${toCheck} marked to check against the paper.</span>` : " Check them against the scan, then save.");
+            notes.innerHTML = (r.notes || []).map(n => `<li>${esc(n)}</li>`).join("");
+            notes.classList.toggle("d-none", !(r.notes || []).length);
+            $("scanLegend").classList.remove("d-none");
+        }
+
+        btn.addEventListener("click", () => read(isDraft));
+        if (isDraft) read(false);
+    })();
 </script>
 }

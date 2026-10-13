@@ -57,7 +57,8 @@ namespace MikroTek.Services.CoreServices
             FundCluster = v.FundCluster ?? "", ResponsibilityCenter = v.ResponsibilityCenter ?? "",
             MfoPap = v.MfoPap ?? "", OrsBurs = v.OrsBurs ?? "",
             Lines = v.Lines.OrderBy(l => l.SortOrder).Select(l => new ExpenseLine(l.Code, l.Title, l.Amount)).ToList(),
-            Tax1 = v.Tax1, Tax3 = v.Tax3,
+            PayeeTaxType = v.PayeeTaxType, ManualTax = v.ManualTax, TaxBase = v.TaxBase,
+            Tax1 = v.Tax1, Tax3 = v.Tax3, Tax5 = v.Tax5,
             Mode = v.Mode ?? "", CheckNo = v.CheckNo ?? "", PaidDate = v.PaidDate, Bank = v.Bank ?? "",
             ReceivedBy = v.ReceivedBy ?? "", OrNo = v.OrNo ?? "", JevNo = v.JevNo ?? "",
             Checklist = v.Checklist.OrderBy(c => c.SortOrder)

@@ -24,15 +24,17 @@
         {
             <tr>
                 <td>@v.DvNo @v.CheckNo</td><td>@v.Payee</td>
-                <td class="num">@Fmt.Num(v.Gross)</td><td class="num">@Fmt.Num(v.Gross)</td>
-                <td class="num">@Fmt.Acct(-v.Tax1)</td><td class="num">@Fmt.Acct(-v.Tax3)</td><td></td><td></td>
+                <td class="num">@Fmt.Num(v.Gross)</td><td class="num">@Fmt.Num(v.TaxBaseOrGross)</td>
+                <td class="num">@(v.IsVat ? "" : Fmt.Acct(-v.Tax1))</td><td class="num">@(v.IsVat ? "" : Fmt.Acct(-v.Tax3))</td>
+                <td class="num">@(v.IsVat ? Fmt.Acct(-v.Tax1) : "")</td><td class="num">@(v.IsVat ? Fmt.Acct(-v.Tax5) : "")</td>
                 <td class="num">@Fmt.Acct(-v.Taxes)</td><td>TO BE REMITTED</td><td class="center">@v.Tin</td>
             </tr>
         }
         <tr><td></td><td class="center">x-x-x-x-x-x-x-x-x-x-x-x-x</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr class="bold">
-            <td></td><td class="center">TOTAL:</td><td class="num">@Fmt.Num(rows.Sum(v => v.Gross))</td><td class="num">@Fmt.Num(rows.Sum(v => v.Gross))</td>
-            <td class="num">@Fmt.Acct(-rows.Sum(v => v.Tax1))</td><td class="num">@Fmt.Acct(-rows.Sum(v => v.Tax3))</td><td class="center">-</td><td class="center">-</td>
+            <td></td><td class="center">TOTAL:</td><td class="num">@Fmt.Num(rows.Sum(v => v.Gross))</td><td class="num">@Fmt.Num(rows.Sum(v => v.TaxBaseOrGross))</td>
+            <td class="num">@Fmt.Acct(-rows.Where(v => !v.IsVat).Sum(v => v.Tax1))</td><td class="num">@Fmt.Acct(-rows.Where(v => !v.IsVat).Sum(v => v.Tax3))</td>
+            <td class="num">@Fmt.Acct(-rows.Where(v => v.IsVat).Sum(v => v.Tax1))</td><td class="num">@Fmt.Acct(-rows.Where(v => v.IsVat).Sum(v => v.Tax5))</td>
             <td class="num">@Fmt.Acct(-rows.Sum(v => v.Taxes))</td><td></td><td></td>
         </tr>
     </tbody>

@@ -23,6 +23,10 @@
     <div class="me-auto text-body-secondary">MOOE cash advances released to the school (School MOOE Slip). Every DV is charged against one.</div>
     @if (canAdd)
     {
+        @if (User.Can(Permissions.VouchersEncode))
+        {
+            <a class="btn btn-outline-primary" asp-controller="Import" asp-action="Index"><i class="bi bi-magic me-1"></i>Import MOOE Packet</a>
+        }
         <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Record Cash Advance</a>
     }
 </div>

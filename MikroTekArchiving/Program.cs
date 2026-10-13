@@ -10,6 +10,7 @@ using MikroTek.Archiving.Areas.Portal.Helpers;
 using MikroTek.Common;
 using MikroTek.Services;
 using MikroTek.Services.DTO;
+using MikroTek.Services.Ocr;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +66,10 @@ builder.Services.AddSingleton(new UploadOptions
         : uploadsFolder,
     MaxFileBytes = builder.Configuration.GetValue("Uploads:MaxFileMegabytes", 100L) * 1024 * 1024
 });
+
+// The scan reader for Import MOOE Packet: Tesseract OCR installed on this PC (free, works offline).
+// Leave "Ocr:TesseractPath" empty when it is in C:\Program Files\Tesseract-OCR.
+builder.Services.AddSingleton(builder.Configuration.GetSection("Ocr").Get<OcrOptions>() ?? new OcrOptions());
 
 var app = builder.Build();
 

@@ -147,6 +147,9 @@ namespace MikroTek.Common
                 v.Property(x => x.OrsBurs).HasMaxLength(50);
                 v.Property(x => x.Tax1).HasPrecision(18, 2);
                 v.Property(x => x.Tax3).HasPrecision(18, 2);
+                v.Property(x => x.Tax5).HasPrecision(18, 2);
+                v.Property(x => x.TaxBase).HasPrecision(18, 2);
+                v.Property(x => x.PayeeTaxType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(PayeeTaxType.NonVat);
                 v.Property(x => x.Mode).HasMaxLength(30);
                 v.Property(x => x.CheckNo).HasMaxLength(30);
                 v.Property(x => x.Bank).HasMaxLength(100);

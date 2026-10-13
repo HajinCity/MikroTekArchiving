@@ -63,6 +63,7 @@
                                 @foreach (var l in Model.Lines) { <tr><td>@l.Title</td><td class="mono">@l.Code</td><td class="num">@Fmt.Num(l.Amount)</td><td></td></tr> }
                                 @if (Model.Tax1 > 0) { <tr><td class="ps-4">Due to BIR — 1%</td><td class="mono">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax1)</td></tr> }
                                 @if (Model.Tax3 > 0) { <tr><td class="ps-4">Due to BIR — 3%</td><td class="mono">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax3)</td></tr> }
+                                @if (Model.Tax5 > 0) { <tr><td class="ps-4">Due to BIR — 5%</td><td class="mono">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax5)</td></tr> }
                                 <tr><td class="ps-4">Advances for Operating Expenses</td><td class="mono">1990101000</td><td></td><td class="num">@Fmt.Num(Model.Net)</td></tr>
                             </tbody>
                             <tfoot class="fw-semibold"><tr><td colspan="2" class="text-end">Totals</td><td class="num">@Fmt.Num(Model.Gross)</td><td class="num">@Fmt.Num(Model.Gross)</td></tr></tfoot>
@@ -163,6 +164,8 @@
                 <div class="row-amt"><span>Gross amount</span><span>@Fmt.Peso(Model.Gross)</span></div>
                 <div class="row-amt text-body-secondary"><span>Less 1% withholding</span><span>@Fmt.Acct(-Model.Tax1)</span></div>
                 <div class="row-amt text-body-secondary"><span>Less 3% withholding</span><span>@Fmt.Acct(-Model.Tax3)</span></div>
+                <div class="row-amt text-body-secondary"><span>Less 5% withholding</span><span>@Fmt.Acct(-Model.Tax5)</span></div>
+                <div class="small text-body-secondary mt-1">@Model.PayeeTaxTypeText payee · tax base @Fmt.Peso(Model.TaxBaseOrGross) · @(Model.ManualTax ? "typed by hand" : "computed automatically")</div>
                 <div class="row-amt total"><span>Net amount paid</span><span>@Fmt.Peso(Model.Net)</span></div>
                 <hr />
                 <div class="small text-body-secondary mb-1">Charged to cash advance</div>

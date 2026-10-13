@@ -4,6 +4,7 @@ using MikroTek.Common;
 using MikroTek.Services.CoreServices;
 using MikroTek.Services.DAL;
 using MikroTek.Services.Interface;
+using MikroTek.Services.Ocr;
 using MikroTek.Services.Utils;
 
 namespace MikroTek.Services
@@ -39,7 +40,13 @@ namespace MikroTek.Services
             services.AddScoped<ISchoolProfile, SchoolProfileServices>();
             services.AddScoped<ArchiveLoader>();
             services.AddScoped<ICashAdvances, CashAdvanceServices>();
-            services.AddScoped<IDisbursements, DisbursementServices>();         
+            services.AddScoped<IDisbursements, DisbursementServices>();
+            // Reading scanned MOOE packets (offline, with Tesseract). OcrOptions is set in Program.cs from appsettings "Ocr".
+            services.AddSingleton<TesseractRunner>();
+            services.AddSingleton<DocumentReader>();
+            services.AddScoped<IPacketImport, PacketImportServices>();
+            services.AddSingleton<DvScanReader>();
+            services.AddScoped<IDvScan, DvScanServices>();         
             services.AddSingleton<IRouterService, FakeRouterService>();
 
             

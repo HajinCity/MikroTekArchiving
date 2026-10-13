@@ -16,13 +16,17 @@
         var list = v.Lines.Where(l => l.Code != OfficeSupplies).Select(l => (l.Title, l.Code, l.Amount)).ToList();
         if (v.Tax1 > 0) list.Add(("Due to BIR- 1%", "2020101000", -v.Tax1));
         if (v.Tax3 > 0) list.Add(("Due to BIR- 3%", "2020101000", -v.Tax3));
+        if (v.Tax5 > 0) list.Add(("Due to BIR- 5%", "2020101000", -v.Tax5));
         return list;
     }
     var recap = dvs.SelectMany(v => v.Lines.Select(l => (Desc: l.Title, l.Code, Amt: l.Amount)))
         .GroupBy(x => (x.Desc, x.Code)).Select(g => (g.Key.Desc, g.Key.Code, Amt: g.Sum(x => x.Amt))).ToList();
-    var t1 = dvs.Sum(v => v.Tax1); var t3 = dvs.Sum(v => v.Tax3);
+    var t1 = dvs.Where(v => !v.IsVat).Sum(v => v.Tax1); var t3 = dvs.Sum(v => v.Tax3);
+    var t1Vat = dvs.Where(v => v.IsVat).Sum(v => v.Tax1); var t5 = dvs.Sum(v => v.Tax5);
     if (t1 > 0) recap.Add(("Due to BIR- 1% (NON VAT)", "2020101000", -t1));
     if (t3 > 0) recap.Add(("Due to BIR- 3% (NON VAT)", "2020101000", -t3));
+    if (t1Vat > 0) recap.Add(("Due to BIR- 1% (VAT)", "2020101000", -t1Vat));
+    if (t5 > 0) recap.Add(("Due to BIR- 5% (VAT)", "2020101000", -t5));
 }
 <div class="right italic small">Appendix 43</div>
 <div class="center bold" style="font-size:12pt; margin-bottom:8px">CASH DISBURSEMENTS REGISTER</div>

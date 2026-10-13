@@ -79,7 +79,7 @@ public static class DashboardExcel
     {
         var ws = wb.AddWorksheet("DVs");
         Header(ws, 1, "DV No.", "DV Date", "Department", "Fund", "Cash Advance", "Transaction Type", "Payee", "TIN",
-            "Particulars", "Gross", "Tax 1%", "Tax 3%", "Net Paid", "Mode", "Check No.", "Date Paid", "Packet", "Docs Missing");
+            "Particulars", "Gross", "Tax 1%", "Tax 3%", "Tax 5%", "Net Paid", "Mode", "Check No.", "Date Paid", "Packet", "Docs Missing");
         var r = 1;
         foreach (var v in d.Vouchers)
         {
@@ -96,20 +96,21 @@ public static class DashboardExcel
             ws.Cell(r, 10).Value = v.Gross;
             ws.Cell(r, 11).Value = v.Tax1;
             ws.Cell(r, 12).Value = v.Tax3;
-            ws.Cell(r, 13).Value = v.Net;
-            ws.Cell(r, 14).Value = v.Mode;
-            ws.Cell(r, 15).Value = v.CheckNo;
-            ws.Cell(r, 16).Value = v.PaidDate is { } paid ? paid : Blank.Value;
-            ws.Cell(r, 17).Value = v.IsComplete ? "Complete" : "Incomplete";
-            ws.Cell(r, 18).Value = v.DocsMissing;
+            ws.Cell(r, 13).Value = v.Tax5;
+            ws.Cell(r, 14).Value = v.Net;
+            ws.Cell(r, 15).Value = v.Mode;
+            ws.Cell(r, 16).Value = v.CheckNo;
+            ws.Cell(r, 17).Value = v.PaidDate is { } paid ? paid : Blank.Value;
+            ws.Cell(r, 18).Value = v.IsComplete ? "Complete" : "Incomplete";
+            ws.Cell(r, 19).Value = v.DocsMissing;
         }
-        Totals(ws, r, 1, 10, 11, 12, 13);
+        Totals(ws, r, 1, 10, 11, 12, 13, 14);
         ws.Range(2, 2, r + 1, 2).Style.NumberFormat.Format = Date;
-        ws.Range(2, 16, r + 1, 16).Style.NumberFormat.Format = Date;
-        ws.Range(2, 10, r + 1, 13).Style.NumberFormat.Format = Money;
+        ws.Range(2, 17, r + 1, 17).Style.NumberFormat.Format = Date;
+        ws.Range(2, 10, r + 1, 14).Style.NumberFormat.Format = Money;
         ws.Column(8).Style.NumberFormat.Format = "@";   // TIN and check numbers are text, not numbers
-        ws.Column(15).Style.NumberFormat.Format = "@";
-        Finish(ws, r, 18, widths: [18, 12, 12, 16, 16, 34, 34, 18, 60, 15, 13, 13, 15, 12, 14, 12, 12, 13]);
+        ws.Column(16).Style.NumberFormat.Format = "@";
+        Finish(ws, r, 19, widths: [18, 12, 12, 16, 16, 34, 34, 18, 60, 15, 13, 13, 13, 15, 12, 14, 12, 12, 13]);
     }
 
     private static void ByMonth(XLWorkbook wb, DashboardData d)

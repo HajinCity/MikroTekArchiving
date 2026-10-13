@@ -29,6 +29,7 @@
         @foreach (var l in Model.Lines) { <tr><td>@l.Title</td><td class="center">@l.Code</td><td class="num">@Fmt.Num(l.Amount)</td><td></td></tr> }
         @if (Model.Tax1 > 0) { <tr><td style="padding-left:20px">Due to BIR 1%</td><td class="center">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax1)</td></tr> }
         @if (Model.Tax3 > 0) { <tr><td style="padding-left:20px">Due to BIR 3%</td><td class="center">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax3)</td></tr> }
+        @if (Model.Tax5 > 0) { <tr><td style="padding-left:20px">Due to BIR 5%</td><td class="center">2020101000</td><td></td><td class="num">@Fmt.Num(Model.Tax5)</td></tr> }
         <tr><td style="padding-left:20px">Advances for Operating Expenses</td><td class="center">1990101000</td><td></td><td class="num">@Fmt.Num(Model.Net)</td></tr>
         <tr class="bold"><td colspan="2" class="right">TOTAL</td><td class="num">@Fmt.Num(Model.Gross)</td><td class="num">@Fmt.Num(Model.Gross)</td></tr>
     </tbody>

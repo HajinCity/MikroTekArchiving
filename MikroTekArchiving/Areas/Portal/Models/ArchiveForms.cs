@@ -27,6 +27,8 @@ public class DvForm
     public required List<PayeeDto> Payees { get; init; }
     public required Dictionary<long, string> NextNumbers { get; init; }
     public required SchoolProfileDto School { get; init; }
+    /// <summary>The liability account the withheld taxes are credited to (Due to BIR).</summary>
+    public required string BirAccountTitle { get; init; }
     /// <summary>Scans already attached (shown beside the form so the values can be copied from them).</summary>
     public List<ArchiveFileDto> Scans { get; init; } = [];
 
@@ -48,4 +50,15 @@ public class ReportsPage
 {
     public required List<CashAdvanceDto> CashAdvances { get; init; }
     public required List<DvDto> Vouchers { get; init; }
+}
+
+/// <summary>Import MOOE Packet: the upload page.</summary>
+public record ImportPage(ScanReaderStatus Status);
+
+/// <summary>Import MOOE Packet: what was read, to check beside the scan before saving.</summary>
+public class ImportReview
+{
+    public required PacketDraft Draft { get; init; }
+    public required List<UacsAccountDto> Accounts { get; init; }
+    public string? Error { get; init; }
 }

@@ -277,6 +277,9 @@ namespace MikroTek.Common.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<bool>("ManualTax")
+                        .HasColumnType("bit");
+
                     b.Property<string>("MfoPap")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -304,6 +307,13 @@ namespace MikroTek.Common.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("PayeeTaxType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("NonVat");
+
                     b.Property<string>("ReceivedBy")
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
@@ -317,6 +327,14 @@ namespace MikroTek.Common.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Tax3")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Tax5")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TaxBase")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
