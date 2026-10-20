@@ -1,5 +1,7 @@
 # Deploying MikroTek Archiving on the school network
 
+> **Using a MacBook (M1/M2/M3) as the server instead?** Follow [DEPLOY-MAC.md](DEPLOY-MAC.md).
+
 One Windows PC is the **server**. It runs the portal and the database.
 Every other PC just opens the portal in **Microsoft Edge or Google Chrome**. They don't need to install anything.
 

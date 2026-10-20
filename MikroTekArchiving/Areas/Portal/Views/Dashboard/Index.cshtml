@@ -118,7 +118,7 @@ else
 {
     <div class="row g-3 mb-3">
         <div class="col-xl-8"><ui-card class="h-100"><partial name="UI/_Chart" model="monthly" /></ui-card></div>
-        <div class="col-xl-4"><ui-card class="h-100"><partial name="UI/_Chart" model="donut" /></ui-card></div>
+        <div class="col-xl-4"><ui-card class="h-100"><partial name="UI/_Chart" model="accountChart" /></ui-card></div>
     </div>
 }
 
@@ -172,7 +172,7 @@ else
 @if (dvs.Count > 0)
 {
     <div class="row g-3">
-        <div class="col-xl-5"><ui-card class="h-100"><partial name="UI/_Chart" model="accountChart" /></ui-card></div>
+        <div class="col-xl-5"><ui-card class="h-100"><partial name="UI/_Chart" model="donut" /></ui-card></div>
         <div class="col-xl-7">
             <ui-card title="DVs in these dates" icon="bi-folder2-open" flush="true" class="h-100">
                 <ui-card-tools><a asp-controller="Vouchers" asp-action="Index">Open archive</a></ui-card-tools>

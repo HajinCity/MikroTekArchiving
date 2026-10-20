@@ -35,12 +35,13 @@
         });
 
         const valueAxis = { beginAtZero: true, grid: { color: grid, drawTicks: false }, border: { display: false },
-            ticks: { color: ink, callback: axisFmt, padding: 6, maxTicksLimit: 6 }, stacked: t === "stackedbar" };
-        const clip = s => typeof s === "string" && s.length > 24 ? s.slice(0, 23) + "…" : s;
+            ticks: { color: ink, callback: axisFmt, padding: 6, maxTicksLimit: horizontal ? 5 : 6, autoSkip: true, autoSkipPadding: 12 }, stacked: t === "stackedbar" };
+        const clip = (s, n = 24) => typeof s === "string" && s.length > n ? s.slice(0, n - 1) + "…" : s;
         const catAxis = { grid: { display: false }, border: { color: grid }, stacked: t === "stackedbar",
             ticks: { color: ctx => emphasis && ctx.index === hi ? css("--app-ink") : ink, autoSkip: !emphasis, maxRotation: 0,
                 font: ctx => emphasis && ctx.index === hi ? { weight: "bold" } : undefined,
-                callback(v) { return clip(this.getLabelForValue(v)); } } };
+                // Horizontal bars: the names may use a bit under half the chart's width, so they fit in a narrow card.
+                callback(v) { return clip(this.getLabelForValue(v), horizontal ? Math.max(12, Math.floor(this.chart.width * 0.42 / 6.8)) : 24); } } };
 
         // Highlight labels: the value next to the emphasised bar, and the highlighted share in the donut's hole.
         const highlightLabels = {

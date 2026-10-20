@@ -5,11 +5,14 @@
     {
         /// <summary>
         /// "Auto" (default): on Windows the reader built into the portal (NuGet package "Tesseract", nothing to install);
-        /// elsewhere the installed tesseract program. "Engine" = always the built-in reader; "Program" = always tesseract.exe.
+        /// elsewhere (macOS, Linux) the installed tesseract program, reading with the language files shipped in tessdata. "Engine" = always the built-in reader; "Program" = always tesseract.exe.
         /// </summary>
         public string Mode { get; set; } = "Auto";
 
-        /// <summary>Program mode: full path of tesseract.exe. Empty = the usual install folders on Windows, or "tesseract" on the PATH.</summary>
+        /// <summary>
+        /// Program mode: full path of tesseract(.exe). Empty = the usual install folders: Program Files on Windows,
+        /// Homebrew on a Mac (/opt/homebrew/bin or /usr/local/bin), else "tesseract" on the PATH.
+        /// </summary>
         public string TesseractPath { get; set; } = "";
 
         /// <summary>Built-in reader: the folder with eng.traineddata and osd.traineddata. Empty = "tessdata" beside the portal's files.</summary>

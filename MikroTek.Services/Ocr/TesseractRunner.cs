@@ -57,10 +57,30 @@ namespace MikroTek.Services.Ocr
                 if (!string.IsNullOrEmpty(root)) yield return Path.Combine(root, "Tesseract-OCR", "tesseract.exe");
         }
 
+        /// <summary>
+        /// Where Homebrew puts it on a Mac (Apple Silicon M1/M2/M3: /opt/homebrew, Intel: /usr/local) and the usual
+        /// Linux place. Looked up by full path because an app started at log-in does not get Homebrew on its PATH.
+        /// </summary>
+        private static readonly string[] UnixPlaces = ["/opt/homebrew/bin/tesseract", "/usr/local/bin/tesseract", "/usr/bin/tesseract"];
+
         public string ExePath =>
             !string.IsNullOrWhiteSpace(options.TesseractPath) ? options.TesseractPath
             : OperatingSystem.IsWindows() ? WindowsPlaces().FirstOrDefault(File.Exists) ?? "tesseract"
-            : "tesseract";
+            : UnixPlaces.FirstOrDefault(File.Exists) ?? "tesseract";
+
+        /// <summary>
+        /// The language files shipped with the portal (tessdata beside its files), when they are there, so the installed
+        /// program reads with exactly the same data as the built-in reader on Windows. Null = the program's own files.
+        /// </summary>
+        private string? ShippedTessdata
+        {
+            get
+            {
+                var folder = options.TessdataPath;
+                return File.Exists(Path.Combine(folder, options.Language + ".traineddata")) && File.Exists(Path.Combine(folder, "osd.traineddata"))
+                    ? folder : null;
+            }
+        }
 
         /// <summary>Null when the reader can be used; otherwise what is wrong, in words for the admin.</summary>
         public async Task<string?> CheckAsync()
@@ -81,8 +101,13 @@ namespace MikroTek.Services.Ocr
             {
                 return options.TesseractPath.Length > 0
                     ? $"Tesseract OCR was not found at \"{options.TesseractPath}\" (appsettings.json → Ocr → TesseractPath). Check the path, or leave it empty."
-                    : "Tesseract OCR is not installed on this server PC. Install it (free) from the UB Mannheim page on GitHub, " +
-                      "with the default options, then open this page again. No restart of the portal is needed.";
+                    : OperatingSystem.IsMacOS()
+                        ? "Tesseract OCR is not installed on this Mac. Open Terminal, run: brew install tesseract  (or run setup-mac.command again), " +
+                          "then open this page again. No restart of the portal is needed."
+                        : OperatingSystem.IsWindows()
+                            ? "Tesseract OCR is not installed on this server PC. Install it (free) from the UB Mannheim page on GitHub, " +
+                              "with the default options, then open this page again. No restart of the portal is needed."
+                            : "Tesseract OCR is not installed on this server. Install the tesseract-ocr package, then open this page again.";
             }
         }
 
@@ -121,7 +146,8 @@ namespace MikroTek.Services.Ocr
                     return page.GetTsvText(1) ?? "";
                 });
             else
-                tsv = (await RunAsync([imagePath, "stdout", "-l", options.Language, "--psm", "4", "tsv"])).Output;
+                // -c tessedit_create_tsv=1 rather than the "tsv" config file: that file is not in the shipped tessdata folder.
+                tsv = (await RunAsync([imagePath, "stdout", "-l", options.Language, "--psm", "4", "-c", "tessedit_create_tsv=1"])).Output;
 
             var words = new List<Word>();
             foreach (var row in tsv.Split('\n'))
@@ -250,6 +276,11 @@ namespace MikroTek.Services.Ocr
                 RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false,
                 CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8
             };
+            if (ShippedTessdata is { } tessdata)
+            {
+                info.ArgumentList.Add("--tessdata-dir");
+                info.ArgumentList.Add(tessdata);
+            }
             foreach (var a in args) info.ArgumentList.Add(a);
             // Tesseract would otherwise use every processor core for each page; we read pages side by side instead.
             info.Environment["OMP_THREAD_LIMIT"] = "1";

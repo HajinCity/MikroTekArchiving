@@ -14,7 +14,21 @@ using MikroTek.Services.Ocr;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Lets the published app run as a Windows Service (does nothing when started normally).
+// On a Mac (the school's MacBook as the server), setup-mac.command writes this Mac's own settings to
+// ~/Library/Application Support/MikroTek Archiving/appsettings.macOS.json: the database (SQL Server in Docker,
+// with its password), the port (5000 is taken by AirPlay on a Mac) and the scan reader. It is kept outside the
+// portal's folder so copying a new version over the folder never loses it. It is read after the usual
+// appsettings files; environment variables and command-line arguments still come last and can override it.
+if (OperatingSystem.IsMacOS())
+{
+    var macSettings = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        "Library", "Application Support", "MikroTek Archiving", "appsettings.macOS.json");
+    builder.Configuration.AddJsonFile(macSettings, optional: true, reloadOnChange: false);
+    builder.Configuration.AddEnvironmentVariables();
+    builder.Configuration.AddCommandLine(args);
+}
+
+// Lets the published app run as a Windows Service (does nothing when started normally, or on a Mac).
 builder.Host.UseWindowsService();
 
 // Add services to the container.
@@ -67,8 +81,8 @@ builder.Services.AddSingleton(new UploadOptions
     MaxFileBytes = builder.Configuration.GetValue("Uploads:MaxFileMegabytes", 100L) * 1024 * 1024
 });
 
-// The scan reader for Import MOOE Packet: Tesseract OCR installed on this PC (free, works offline).
-// Leave "Ocr:TesseractPath" empty when it is in C:\Program Files\Tesseract-OCR.
+// The scan reader (Tesseract OCR, free, works offline): built into the portal on Windows; on a Mac the
+// Homebrew program (brew install tesseract). Leave "Ocr:TesseractPath" empty to use the usual install folder.
 builder.Services.AddSingleton(builder.Configuration.GetSection("Ocr").Get<OcrOptions>() ?? new OcrOptions());
 
 var app = builder.Build();
